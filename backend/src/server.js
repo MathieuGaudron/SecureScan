@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./database/connection");
+const { Analysis, Vulnerability, Fix } = require("./models");
 const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -65,7 +66,7 @@ app.post("/api/scan", async (req, res) => {
           } else {
             resolve(stdout);
           }
-        }
+        },
       );
     });
 

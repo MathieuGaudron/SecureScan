@@ -2,6 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./database/connection");
+const { exec } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +35,52 @@ app.get("/api/health", (req, res) => {
     message: "SecureScan API is running",
     timestamp: new Date().toISOString(),
   });
+});
+
+// Route scan qui recois le repo
+app.post("/api/scan", async (req, res) => {
+  const { repoUrl } = req.body;
+
+  if (!repoUrl) {
+    return res.status(400).json({ error: "repoUrl manquant" });
+  }
+
+  const scanId = `scan_${Date.now()}`;
+  const baseDir = "/tmp/securescan";
+  const projectPath = path.join(baseDir, scanId);
+
+  try {
+    // Créer le dossier de base si pas existant
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir, { recursive: true });
+    }
+
+    // Cloner le repo
+    await new Promise((resolve, reject) => {
+      exec(
+        `git clone --depth 1 ${repoUrl} ${projectPath}`,
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(stderr);
+          } else {
+            resolve(stdout);
+          }
+        }
+      );
+    });
+
+    return res.json({
+      scanId,
+      status: "cloned",
+      message: "Repository cloné avec succès",
+      path: projectPath,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: "Clone failed",
+      details: err,
+    });
+  }
 });
 
 // TODO: Import et enregistrer les routes API

@@ -3,9 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./database/connection");
 const { Analysis, Vulnerability, Fix } = require("./models");
-const { exec } = require("child_process");
-const fs = require("fs");
-const path = require("path");
+const scanRoutes = require("./routes/scan.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,10 +23,6 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-// ========================================
-// ROUTES
-// ========================================
-
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({
@@ -38,51 +32,13 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Route scan qui recois le repo
-app.post("/api/scan", async (req, res) => {
-  const { repoUrl } = req.body;
+// APPEL ROUTES
+app.use(express.json());
+app.use("/api", scanRoutes);
 
-  if (!repoUrl) {
-    return res.status(400).json({ error: "repoUrl manquant" });
-  }
 
-  const scanId = `scan_${Date.now()}`;
-  const baseDir = "/tmp/securescan";
-  const projectPath = path.join(baseDir, scanId);
 
-  try {
-    // Créer le dossier de base si pas existant
-    if (!fs.existsSync(baseDir)) {
-      fs.mkdirSync(baseDir, { recursive: true });
-    }
 
-    // Cloner le repo
-    await new Promise((resolve, reject) => {
-      exec(
-        `git clone --depth 1 ${repoUrl} ${projectPath}`,
-        (error, stdout, stderr) => {
-          if (error) {
-            reject(stderr);
-          } else {
-            resolve(stdout);
-          }
-        },
-      );
-    });
-
-    return res.json({
-      scanId,
-      status: "cloned",
-      message: "Repository cloné avec succès",
-      path: projectPath,
-    });
-  } catch (err) {
-    return res.status(500).json({
-      error: "Clone failed",
-      details: err,
-    });
-  }
-});
 
 // TODO: Import et enregistrer les routes API
 // const analysisRoutes = require('./routes/analysis.routes');

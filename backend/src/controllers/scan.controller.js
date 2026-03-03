@@ -90,6 +90,9 @@ function gradeFromScore(score) {
 
 // ---------- CONTROLLER ----------
 exports.scanRepo = async (req, res) => {
+  console.log("Controller - req.body:", req.body);
+  console.log("Controller - req.body.repoUrl:", req.body.repoUrl);
+
   const { repoUrl, branch } = req.body;
   const userId = req.user.id; // User authentifié via authMiddleware
 
@@ -126,10 +129,18 @@ exports.scanRepo = async (req, res) => {
       await execPromise(`git checkout ${branch}`, { cwd: projectPath });
     }
 
-    // Scan semgrep
+    // Scan semgrep (avec UTF-8 pour Windows)
     const semgrepJson = await execPromise(
       `semgrep --config auto --json --disable-version-check`,
-      { cwd: projectPath, timeout: 2 * 60 * 1000 },
+      {
+        cwd: projectPath,
+        timeout: 2 * 60 * 1000,
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
+        },
+      },
     );
 
     // Parsing du json

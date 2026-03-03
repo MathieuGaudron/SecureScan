@@ -10,6 +10,17 @@ const Analysis = sequelize.define(
       primaryKey: true,
     },
 
+    // Relation avec User
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: "users",
+        key: "id",
+      },
+      onDelete: "CASCADE",
+    },
+
     // Informations du repository
     repositoryUrl: {
       type: DataTypes.STRING,

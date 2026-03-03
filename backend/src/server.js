@@ -2,9 +2,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./database/connection");
-const { Analysis, Vulnerability, Fix } = require("./models");
+const { User, Analysis, Vulnerability, Fix } = require("./models");
 const scanRoutes = require("./routes/scan.routes");
-const analysisRoutes = require("./routes/analysis.routes");
+const userRoutes = require("./routes/user.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,14 +33,12 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// APPEL ROUTES
-app.use(express.json());
+// ========================================
+// ROUTES
+// ========================================
+app.use("/api/users", userRoutes);
 app.use("/api", scanRoutes);
 app.use("/analyses", analysisRoutes);
-
-
-
-
 
 
 

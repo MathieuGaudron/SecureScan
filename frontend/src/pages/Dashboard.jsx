@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -7,45 +7,52 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-} from 'recharts'
+} from "recharts";
 
 const owaspColors = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308',
-  '#84cc16', '#22c55e', '#14b8a6', '#06b6d4',
-  '#3b82f6', '#8b5cf6',
-]
+  "#ef4444",
+  "#f97316",
+  "#f59e0b",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#14b8a6",
+  "#06b6d4",
+  "#3b82f6",
+  "#8b5cf6",
+];
 
 const owaspNames = {
-  A01: 'Broken Access Control',
-  A02: 'Cryptographic Failures',
-  A03: 'Injection',
-  A04: 'Insecure Design',
-  A05: 'Security Misconfiguration',
-  A06: 'Vulnerable Components',
-  A07: 'Auth Failures',
-  A08: 'Data Integrity Failures',
-  A09: 'Logging Failures',
-  A10: 'SSRF',
-}
+  A01: "Broken Access Control",
+  A02: "Cryptographic Failures",
+  A03: "Injection",
+  A04: "Insecure Design",
+  A05: "Security Misconfiguration",
+  A06: "Vulnerable Components",
+  A07: "Auth Failures",
+  A08: "Data Integrity Failures",
+  A09: "Logging Failures",
+  A10: "SSRF",
+};
 
 const severityConfig = {
-  critical: { label: 'CRITIQUE', color: '#ef4444' },
-  high: { label: 'ELEVEE', color: '#f97316' },
-  medium: { label: 'MOYENNE', color: '#eab308' },
-  low: { label: 'BASSE', color: '#22c55e' },
-}
+  critical: { label: "CRITIQUE", color: "#ef4444" },
+  high: { label: "ELEVEE", color: "#f97316" },
+  medium: { label: "MOYENNE", color: "#eab308" },
+  low: { label: "BASSE", color: "#22c55e" },
+};
 
 function ScoreCircle({ score, grade }) {
-  const circumference = 2 * Math.PI * 45
-  const offset = circumference - (score / 100) * circumference
+  const circumference = 2 * Math.PI * 45;
+  const offset = circumference - (score / 100) * circumference;
   const color =
     score >= 80
-      ? '#22c55e'
+      ? "#22c55e"
       : score >= 60
-        ? '#eab308'
+        ? "#eab308"
         : score >= 40
-          ? '#f97316'
-          : '#ef4444'
+          ? "#f97316"
+          : "#ef4444";
 
   return (
     <div className="flex flex-col items-center">
@@ -79,61 +86,59 @@ function ScoreCircle({ score, grade }) {
       </div>
       <p className="text-gray-400 text-sm mt-2">Score de securite</p>
     </div>
-  )
+  );
 }
 
 function Dashboard({ scanResults }) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   if (!scanResults) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-gray-400 text-lg mb-4">
-          Aucune analyse disponible
-        </p>
+        <p className="text-gray-400 text-lg mb-4">Aucune analyse disponible</p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg transition-colors"
         >
           Lancer une analyse
         </button>
       </div>
-    )
+    );
   }
 
   // Construire les données depuis la réponse API
-  const score = scanResults.securityScore ?? 0
-  const grade = scanResults.scoreGrade ?? 'F'
+  const score = scanResults.securityScore ?? 0;
+  const grade = scanResults.scoreGrade ?? "F";
   const summary = {
     total: scanResults.totalVulnerabilities ?? 0,
     critical: scanResults.criticalCount ?? 0,
     high: scanResults.highCount ?? 0,
     medium: scanResults.mediumCount ?? 0,
     low: scanResults.lowCount ?? 0,
-  }
+  };
 
   // Distribution OWASP depuis les vulnérabilités
-  const vulns = scanResults.vulnerabilities || []
-  const owaspCounts = {}
+  const vulns = scanResults.vulnerabilities || [];
+  const owaspCounts = {};
   vulns.forEach((v) => {
-    const cat = v.owaspCategory || 'Other'
-    owaspCounts[cat] = (owaspCounts[cat] || 0) + 1
-  })
+    const cat = v.owaspCategory || "Other";
+    owaspCounts[cat] = (owaspCounts[cat] || 0) + 1;
+  });
 
   const owaspDistribution = Object.keys(owaspNames).map((id) => ({
     id,
     name: owaspNames[id],
     count: owaspCounts[id] || 0,
-  }))
+  }));
 
-  const owaspCovered = owaspDistribution.filter((d) => d.count > 0).length
+  const owaspCovered = owaspDistribution.filter((d) => d.count > 0).length;
 
   // Outils (pour l'instant que Semgrep)
   const tools = [
-    { name: 'Semgrep (SAST)', icon: 'search', findings: summary.total },
-    { name: 'npm audit', icon: 'package', findings: 0 },
-    { name: 'ESLint Security', icon: 'check', findings: 0 },
-  ]
+    { name: "Semgrep (SAST)", icon: "search", findings: summary.total },
+    { name: "npm audit", icon: "package", findings: 0 },
+    { name: "ESLint Security", icon: "check", findings: 0 },
+  ];
 
   return (
     <div>
@@ -144,15 +149,16 @@ function Dashboard({ scanResults }) {
             Resultats d&apos;analyse
           </h1>
           <p className="text-gray-400">
-            {scanResults.repositoryName} — {summary.total} vulnerabilites detectees
+            {scanResults.repositoryName} — {summary.total} vulnerabilites
+            detectees
           </p>
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => navigate('/findings')}
+            onClick={() => navigate("/findings")}
             className="px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
           >
-            Voir les findings →
+            Voir les vulnérabilités →
           </button>
           <button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
             Generer rapport
@@ -203,20 +209,17 @@ function Dashboard({ scanResults }) {
               <YAxis
                 dataKey="id"
                 type="category"
-                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                tick={{ fill: "#9ca3af", fontSize: 12 }}
                 width={35}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#1a1f2e',
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  color: '#fff',
+                  backgroundColor: "#1a1f2e",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  color: "#fff",
                 }}
-                formatter={(value, name, props) => [
-                  value,
-                  props.payload.name,
-                ]}
+                formatter={(value, name, props) => [value, props.payload.name]}
               />
               <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={18}>
                 {owaspDistribution.map((entry, index) => (
@@ -244,11 +247,11 @@ function Dashboard({ scanResults }) {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center text-sm">
-                      {tool.icon === 'search'
-                        ? '🔍'
-                        : tool.icon === 'package'
-                          ? '📦'
-                          : '✅'}
+                      {tool.icon === "search"
+                        ? "🔍"
+                        : tool.icon === "package"
+                          ? "📦"
+                          : "✅"}
                     </div>
                     <span className="text-white text-sm font-medium">
                       {tool.name}
@@ -258,7 +261,9 @@ function Dashboard({ scanResults }) {
                     <span className="text-orange-400 font-semibold text-sm">
                       {tool.findings}
                     </span>
-                    <span className="text-gray-400 text-xs">findings</span>
+                    <span className="text-gray-400 text-xs">
+                      vulnérabilités
+                    </span>
                     <span className="text-emerald-400">●</span>
                   </div>
                 </div>
@@ -271,14 +276,13 @@ function Dashboard({ scanResults }) {
               Categories OWASP couvertes
             </p>
             <p className="text-3xl font-bold text-emerald-400">
-              {owaspCovered}{' '}
-              <span className="text-lg text-gray-400">/ 10</span>
+              {owaspCovered} <span className="text-lg text-gray-400">/ 10</span>
             </p>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default Dashboard
+export default Dashboard;

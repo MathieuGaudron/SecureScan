@@ -1,4 +1,4 @@
-import { NavLink, Link } from 'react-router-dom'
+import { NavLink, Link } from "react-router-dom";
 
 function Header({ user, onLogout }) {
   return (
@@ -19,8 +19,8 @@ function Header({ user, onLogout }) {
             className={({ isActive }) =>
               `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-emerald-500 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  ? "bg-emerald-500 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
               }`
             }
           >
@@ -31,8 +31,8 @@ function Header({ user, onLogout }) {
             className={({ isActive }) =>
               `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-emerald-500 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  ? "bg-emerald-500 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
               }`
             }
           >
@@ -43,12 +43,12 @@ function Header({ user, onLogout }) {
             className={({ isActive }) =>
               `px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-emerald-500 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  ? "bg-emerald-500 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
               }`
             }
           >
-            Findings
+            Vulnérabilités
           </NavLink>
         </nav>
 
@@ -84,7 +84,7 @@ function Header({ user, onLogout }) {
         </div>
       </div>
     </header>
-  )
+  );
 }
 
-export default Header
+export default Header;

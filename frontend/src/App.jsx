@@ -1,100 +1,115 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Header from './components/Header'
-import Soumission from './pages/Soumission'
-import Dashboard from './pages/Dashboard'
-import Findings from './pages/Findings'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import { useState } from 'react'
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Header from "./components/Header";
+import Soumission from "./pages/Soumission";
+import Dashboard from "./pages/Dashboard";
+import Findings from "./pages/Findings";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import { useState } from "react";
 
 function App() {
-  const [scanResults, setScanResults] = useState(null)
-  const [isScanning, setIsScanning] = useState(false)
-  const [scanProgress, setScanProgress] = useState([])
-  const [appliedFixes, setAppliedFixes] = useState(new Set())
-  const [scanError, setScanError] = useState(null)
+  const [scanResults, setScanResults] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState([]);
+  const [appliedFixes, setAppliedFixes] = useState(new Set());
+  const [scanError, setScanError] = useState(null);
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user')
-    return saved ? JSON.parse(saved) : null
-  })
+    const saved = localStorage.getItem("user");
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const handleLogin = (userData) => {
-    setUser(userData)
-  }
+    setUser(userData);
+  };
 
   const handleLogout = () => {
-    setUser(null)
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-  }
+    setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  };
 
   const handleStartScan = async (projectInfo) => {
     // Vérifier que l'utilisateur est connecté
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem("token");
     if (!user || !token) {
-      setScanError('Vous devez être connecté pour lancer un scan')
-      return
+      setScanError("Vous devez être connecté pour lancer un scan");
+      return false;
     }
 
-    setIsScanning(true)
-    setScanProgress([])
-    setAppliedFixes(new Set())
-    setScanError(null)
+    setIsScanning(true);
+    setScanProgress([]);
+    setAppliedFixes(new Set());
+    setScanError(null);
 
     // Animation de progression pendant que le backend scanne
-    const tools = ['Semgrep', 'npm audit', 'ESLint Security']
+    const tools = ["Semgrep", "npm audit", "ESLint Security"];
     const timers = tools.map((tool, i) =>
-      setTimeout(() => setScanProgress(prev => [...prev, tool]), (i + 1) * 1000)
-    )
+      setTimeout(
+        () => setScanProgress((prev) => [...prev, tool]),
+        (i + 1) * 1000,
+      ),
+    );
 
     try {
       // Appel au vrai backend avec token JWT
-      const res = await fetch('/api/scan', {
-        method: 'POST',
+      const res = await fetch("/api/scan", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ repoUrl: projectInfo.url, branch: 'main' }),
-      })
+        body: JSON.stringify({ repoUrl: projectInfo.url, branch: "main" }),
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!res.ok) {
-        setScanError(data.error || data.message || 'Erreur lors du scan')
-        setIsScanning(false)
-        return
+        setScanError(data.error || data.message || "Erreur lors du scan");
+        setIsScanning(false);
+        timers.forEach(clearTimeout);
+        return false;
       }
 
       // Récupérer les détails de l'analyse avec les vulnérabilités
-      const detailRes = await fetch(`/analyses/${data.analysisId}`, {
+      const detailRes = await fetch(`/api/analysis/${data.analysisId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-      })
-      const analysisDetail = await detailRes.json()
+      });
+      const analysisDetail = await detailRes.json();
 
-      setScanResults(analysisDetail)
-    } catch {
-      setScanError('Erreur de connexion au serveur')
-    } finally {
-      timers.forEach(clearTimeout)
-      setScanProgress(tools)
-      setIsScanning(false)
+      if (!detailRes.ok) {
+        setScanError("Erreur lors de la récupération des résultats");
+        setIsScanning(false);
+        timers.forEach(clearTimeout);
+        return false;
+      }
+
+      setScanResults(analysisDetail);
+      timers.forEach(clearTimeout);
+      setScanProgress(tools);
+      setIsScanning(false);
+      return true;
+    } catch (error) {
+      console.error("Erreur scan:", error);
+      setScanError("Erreur de connexion au serveur");
+      timers.forEach(clearTimeout);
+      setIsScanning(false);
+      return false;
     }
-  }
+  };
 
   const handleApplyFix = (findingId) => {
-    setAppliedFixes(prev => new Set([...prev, findingId]))
-  }
+    setAppliedFixes((prev) => new Set([...prev, findingId]));
+  };
 
   const handleRejectFix = (findingId) => {
-    setAppliedFixes(prev => {
-      const next = new Set(prev)
-      next.delete(findingId)
-      return next
-    })
-  }
+    setAppliedFixes((prev) => {
+      const next = new Set(prev);
+      next.delete(findingId);
+      return next;
+    });
+  };
 
   return (
     <Router>
@@ -129,10 +144,7 @@ function App() {
                 />
               }
             />
-            <Route
-              path="/login"
-              element={<Login onLogin={handleLogin} />}
-            />
+            <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route
               path="/register"
               element={<Register onLogin={handleLogin} />}
@@ -141,7 +153,7 @@ function App() {
         </main>
       </div>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;

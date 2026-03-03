@@ -1,22 +1,22 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const severityStyles = {
-  critical: { label: 'Critique', bg: 'bg-red-500', text: 'text-white' },
-  high: { label: 'Elevee', bg: 'bg-orange-500', text: 'text-white' },
-  medium: { label: 'Moyenne', bg: 'bg-yellow-500', text: 'text-black' },
-  low: { label: 'Basse', bg: 'bg-green-500', text: 'text-white' },
-  info: { label: 'Info', bg: 'bg-blue-500', text: 'text-white' },
-}
+  critical: { label: "Critique", bg: "bg-red-500", text: "text-white" },
+  high: { label: "Elevee", bg: "bg-orange-500", text: "text-white" },
+  medium: { label: "Moyenne", bg: "bg-yellow-500", text: "text-black" },
+  low: { label: "Basse", bg: "bg-green-500", text: "text-white" },
+  info: { label: "Info", bg: "bg-blue-500", text: "text-white" },
+};
 
 function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
-  const [expanded, setExpanded] = useState(false)
-  const style = severityStyles[finding.severity] || severityStyles.info
+  const [expanded, setExpanded] = useState(false);
+  const style = severityStyles[finding.severity] || severityStyles.info;
 
   return (
     <div
       className={`bg-[#1a1f2e] border rounded-xl overflow-hidden transition-colors ${
-        isApplied ? 'border-emerald-500/50' : 'border-gray-700'
+        isApplied ? "border-emerald-500/50" : "border-gray-700"
       }`}
     >
       <div
@@ -39,7 +39,7 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
             </span>
           )}
           <span className="ml-auto text-gray-500 text-lg">
-            {expanded ? '▾' : '▸'}
+            {expanded ? "▾" : "▸"}
           </span>
         </div>
         <p className="text-white text-sm font-medium">{finding.title}</p>
@@ -85,8 +85,8 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      onApplyFix(finding.id)
+                      e.stopPropagation();
+                      onApplyFix(finding.id);
                     }}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
@@ -94,8 +94,8 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
                   </button>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      onRejectFix(finding.id)
+                      e.stopPropagation();
+                      onRejectFix(finding.id);
                     }}
                     className="border border-gray-600 text-gray-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
                   >
@@ -109,8 +109,8 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
                   </span>
                   <button
                     onClick={(e) => {
-                      e.stopPropagation()
-                      onRejectFix(finding.id)
+                      e.stopPropagation();
+                      onRejectFix(finding.id);
                     }}
                     className="text-gray-500 text-sm hover:text-red-400 transition-colors"
                   >
@@ -127,46 +127,46 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function Findings({ scanResults, appliedFixes, onApplyFix, onRejectFix }) {
-  const [severityFilter, setSeverityFilter] = useState('all')
-  const [owaspFilter, setOwaspFilter] = useState('all')
-  const navigate = useNavigate()
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [owaspFilter, setOwaspFilter] = useState("all");
+  const navigate = useNavigate();
 
   if (!scanResults) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-gray-400 text-lg mb-4">
-          Aucune analyse disponible
-        </p>
+        <p className="text-gray-400 text-lg mb-4">Aucune analyse disponible</p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg transition-colors"
         >
           Lancer une analyse
         </button>
       </div>
-    )
+    );
   }
 
-  const vulnerabilities = scanResults.vulnerabilities || []
+  const vulnerabilities = scanResults.vulnerabilities || [];
 
   const filtered = vulnerabilities.filter((f) => {
-    if (severityFilter !== 'all' && f.severity !== severityFilter) return false
-    if (owaspFilter !== 'all' && f.owaspCategory !== owaspFilter) return false
-    return true
-  })
+    if (severityFilter !== "all" && f.severity !== severityFilter) return false;
+    if (owaspFilter !== "all" && f.owaspCategory !== owaspFilter) return false;
+    return true;
+  });
 
-  const owaspCategories = [...new Set(vulnerabilities.map((f) => f.owaspCategory))].sort()
+  const owaspCategories = [
+    ...new Set(vulnerabilities.map((f) => f.owaspCategory)),
+  ].sort();
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-white">
-          Findings detailles{' '}
+          Vulnérabilités détaillées{" "}
           <span className="text-gray-400 text-lg font-normal">
             {filtered.length} resultat(s)
           </span>
@@ -219,12 +219,12 @@ function Findings({ scanResults, appliedFixes, onApplyFix, onRejectFix }) {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2">
           <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-emerald-500/20 transition-all hover:scale-105">
             Push les corrections sur GitHub ({appliedFixes.size} fix
-            {appliedFixes.size > 1 ? 's' : ''})
+            {appliedFixes.size > 1 ? "s" : ""})
           </button>
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default Findings
+export default Findings;

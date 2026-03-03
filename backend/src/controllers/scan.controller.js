@@ -6,11 +6,40 @@ const { sequelize } = require("../database/connection");
 const { Analysis, Vulnerability } = require("../models");
 
 // -------- MOTEUR DE SCAN ----------
+// Extraire un snippet de code depuis un fichier
+function extractCodeSnippet(filePath, startLine, endLine, projectPath) {
+  try {
+    const fullPath = path.join(projectPath, filePath);
+    if (!fs.existsSync(fullPath)) return null;
+
+    const content = fs.readFileSync(fullPath, "utf-8");
+    const lines = content.split("\n");
+
+    // Ajouter 2 lignes de contexte avant et après
+    const contextBefore = 2;
+    const contextAfter = 2;
+    const start = Math.max(0, (startLine || 1) - 1 - contextBefore);
+    const end = Math.min(
+      lines.length,
+      (endLine || startLine || 1) + contextAfter,
+    );
+
+    return lines.slice(start, end).join("\n");
+  } catch (error) {
+    console.error(`Erreur lecture snippet: ${error.message}`);
+    return null;
+  }
+}
+
 function execPromise(cmd, options = {}) {
   return new Promise((resolve, reject) => {
     exec(
       cmd,
-      { ...options, maxBuffer: 50 * 1024 * 1024, env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } },
+      {
+        ...options,
+        maxBuffer: 50 * 1024 * 1024,
+        env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" },
+      },
       (error, stdout, stderr) => {
         if (error) return reject(stderr || error.message);
         resolve(stdout);
@@ -94,8 +123,11 @@ exports.scanRepo = async (req, res) => {
   console.log("Controller - req.body.repoUrl:", req.body.repoUrl);
 
   const { repoUrl, branch } = req.body;
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized", message: "Token manquant ou invalide" });
+  const userId = req.user?.id;
+  if (!userId)
+    return res
+      .status(401)
+      .json({ error: "Unauthorized", message: "Token manquant ou invalide" });
 
   if (!repoUrl) {
     return res.status(400).json({ error: "repoUrl manquant" });
@@ -170,6 +202,17 @@ exports.scanRepo = async (req, res) => {
       const metadata = r?.extra?.metadata || {};
       const severity = mapSeverity(r?.extra?.severity);
 
+      // Toujours extraire depuis le fichier (Semgrep peut retourner "requires login")
+      let codeSnippet = null;
+      if (r?.path && r?.start?.line) {
+        codeSnippet = extractCodeSnippet(
+          r.path,
+          r.start.line,
+          r.end?.line || r.start.line,
+          projectPath,
+        );
+      }
+
       return {
         analysisId: analysis.id,
         title: r?.check_id || "Semgrep finding",
@@ -180,7 +223,7 @@ exports.scanRepo = async (req, res) => {
         filePath: r?.path || null,
         lineNumber: r?.start?.line ?? null,
         lineEndNumber: r?.end?.line ?? null,
-        codeSnippet: r?.extra?.lines || null,
+        codeSnippet,
         toolSource: "semgrep",
         ruleId: r?.check_id || null,
         confidence: "medium",

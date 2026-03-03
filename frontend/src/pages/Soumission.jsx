@@ -3,16 +3,18 @@ import { useNavigate } from 'react-router-dom'
 
 const languages = ['JavaScript', 'Python', 'PHP', 'Auto-detect']
 
-function Soumission({ onStartScan, isScanning, scanProgress }) {
+function Soumission({ onStartScan, isScanning, scanProgress, scanError }) {
   const [repoUrl, setRepoUrl] = useState('')
   const [selectedLang, setSelectedLang] = useState('JavaScript')
   const [dragActive, setDragActive] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onStartScan({ url: repoUrl, language: selectedLang })
-    setTimeout(() => navigate('/dashboard'), 3500)
+    await onStartScan({ url: repoUrl, language: selectedLang })
+    if (!scanError) {
+      navigate('/dashboard')
+    }
   }
 
   const handleDrag = (e) => {
@@ -92,6 +94,13 @@ function Soumission({ onStartScan, isScanning, scanProgress }) {
             </button>
           ))}
         </div>
+
+        {/* Error */}
+        {scanError && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 mb-6 text-sm">
+            {scanError}
+          </div>
+        )}
 
         {/* Scan Progress */}
         {isScanning && (

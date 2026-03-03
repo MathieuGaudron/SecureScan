@@ -12,7 +12,7 @@ function execPromise(cmd, options = {}) {
   return new Promise((resolve, reject) => {
     exec(
       cmd,
-      { ...options, maxBuffer: 50 * 1024 * 1024 },
+      { ...options, maxBuffer: 50 * 1024 * 1024, env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } },
       (error, stdout, stderr) => {
         if (error) return reject(stderr || error.message);
         resolve(stdout);

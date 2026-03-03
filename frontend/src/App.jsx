@@ -6,13 +6,13 @@ import Findings from './pages/Findings'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import { useState } from 'react'
-import { mockScanResults } from './data/mockData'
 
 function App() {
   const [scanResults, setScanResults] = useState(null)
   const [isScanning, setIsScanning] = useState(false)
   const [scanProgress, setScanProgress] = useState([])
   const [appliedFixes, setAppliedFixes] = useState(new Set())
+  const [scanError, setScanError] = useState(null)
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user')
     return saved ? JSON.parse(saved) : null
@@ -28,22 +28,46 @@ function App() {
     localStorage.removeItem('user')
   }
 
-  const handleStartScan = (projectInfo) => {
+  const handleStartScan = async (projectInfo) => {
     setIsScanning(true)
     setScanProgress([])
     setAppliedFixes(new Set())
+    setScanError(null)
 
+    // Animation de progression pendant que le backend scanne
     const tools = ['Semgrep', 'npm audit', 'ESLint Security']
-    tools.forEach((tool, i) => {
-      setTimeout(() => {
-        setScanProgress(prev => [...prev, tool])
-      }, (i + 1) * 1000)
-    })
+    const timers = tools.map((tool, i) =>
+      setTimeout(() => setScanProgress(prev => [...prev, tool]), (i + 1) * 1000)
+    )
 
-    setTimeout(() => {
-      setScanResults(mockScanResults)
+    try {
+      // Appel au vrai backend
+      const res = await fetch('/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl: projectInfo.url, branch: 'main' }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setScanError(data.error || 'Erreur lors du scan')
+        setIsScanning(false)
+        return
+      }
+
+      // Récupérer les détails de l'analyse avec les vulnérabilités
+      const detailRes = await fetch(`/analyses/${data.analysisId}`)
+      const analysisDetail = await detailRes.json()
+
+      setScanResults(analysisDetail)
+    } catch {
+      setScanError('Erreur de connexion au serveur')
+    } finally {
+      timers.forEach(clearTimeout)
+      setScanProgress(tools)
       setIsScanning(false)
-    }, 3500)
+    }
   }
 
   const handleApplyFix = (findingId) => {
@@ -71,6 +95,7 @@ function App() {
                   onStartScan={handleStartScan}
                   isScanning={isScanning}
                   scanProgress={scanProgress}
+                  scanError={scanError}
                 />
               }
             />

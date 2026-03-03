@@ -4,6 +4,7 @@ const cors = require("cors");
 const { sequelize } = require("./database/connection");
 const { Analysis, Vulnerability, Fix } = require("./models");
 const scanRoutes = require("./routes/scan.routes");
+const analysisRoutes = require("./routes/analysis.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,9 @@ app.get("/api/health", (req, res) => {
 // APPEL ROUTES
 app.use(express.json());
 app.use("/api", scanRoutes);
+app.use("/analyses", analysisRoutes);
+
+
 
 
 

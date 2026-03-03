@@ -5,6 +5,9 @@ const { sequelize } = require("./database/connection");
 const { User, Analysis, Vulnerability, Fix } = require("./models");
 const scanRoutes = require("./routes/scan.routes");
 const userRoutes = require("./routes/user.routes");
+const analysisRoutes = require('./routes/analysis.routes');
+
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,10 +41,7 @@ app.get("/api/health", (req, res) => {
 // ========================================
 app.use("/api/users", userRoutes);
 app.use("/api/scan", scanRoutes);
-
-// TODO: Import et enregistrer les routes API
-// const analysisRoutes = require('./routes/analysis.routes');
-// app.use('/api/analysis', analysisRoutes);
+app.use('/api/analysis', analysisRoutes);
 
 // ========================================
 // ERROR HANDLING

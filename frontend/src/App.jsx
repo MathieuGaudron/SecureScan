@@ -67,7 +67,7 @@ function App() {
       }
 
       // Récupérer les détails de l'analyse avec les vulnérabilités
-      const detailRes = await fetch(`/analyses/${data.analysisId}`, {
+      const detailRes = await fetch(`/api/analysis/${data.analysisId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

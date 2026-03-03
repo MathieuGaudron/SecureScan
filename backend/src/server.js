@@ -5,6 +5,9 @@ const { sequelize } = require("./database/connection");
 const { User, Analysis, Vulnerability, Fix } = require("./models");
 const scanRoutes = require("./routes/scan.routes");
 const userRoutes = require("./routes/user.routes");
+const analysisRoutes = require('./routes/analysis.routes');
+
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === "development") {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
+    console.log("Body:", JSON.stringify(req.body));
     next();
   });
 }
@@ -37,14 +41,8 @@ app.get("/api/health", (req, res) => {
 // ROUTES
 // ========================================
 app.use("/api/users", userRoutes);
-app.use("/api", scanRoutes);
-app.use("/analyses", analysisRoutes);
-
-
-
-// TODO: Import et enregistrer les routes API
-// const analysisRoutes = require('./routes/analysis.routes');
-// app.use('/api/analysis', analysisRoutes);
+app.use("/api/scan", scanRoutes);
+app.use('/api/analysis', analysisRoutes);
 
 // ========================================
 // ERROR HANDLING

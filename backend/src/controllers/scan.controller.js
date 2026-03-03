@@ -5,8 +5,6 @@ const path = require("path");
 const { sequelize } = require("../database/connection");
 const { Analysis, Vulnerability } = require("../models");
 
-
-
 // -------- MOTEUR DE SCAN ----------
 function execPromise(cmd, options = {}) {
   return new Promise((resolve, reject) => {
@@ -16,7 +14,7 @@ function execPromise(cmd, options = {}) {
       (error, stdout, stderr) => {
         if (error) return reject(stderr || error.message);
         resolve(stdout);
-      }
+      },
     );
   });
 }
@@ -24,7 +22,6 @@ function execPromise(cmd, options = {}) {
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
-
 
 // delete du fichier tmp apres le scan (on garde tout en DB)
 function cleanupTmp(projectPath) {
@@ -93,7 +90,12 @@ function gradeFromScore(score) {
 
 // ---------- CONTROLLER ----------
 exports.scanRepo = async (req, res) => {
+  console.log("Controller - req.body:", req.body);
+  console.log("Controller - req.body.repoUrl:", req.body.repoUrl);
+
   const { repoUrl, branch } = req.body;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized", message: "Token manquant ou invalide" });
 
   if (!repoUrl) {
     return res.status(400).json({ error: "repoUrl manquant" });
@@ -110,6 +112,7 @@ exports.scanRepo = async (req, res) => {
 
     //Create Analysis en DB
     analysis = await Analysis.create({
+      userId, // Lier l'analyse au user connecté
       repositoryUrl: repoUrl,
       repositoryName: getRepoName(repoUrl),
       sourceType: "git",
@@ -122,14 +125,24 @@ exports.scanRepo = async (req, res) => {
     // 2) git clone
     await execPromise(`git clone --depth 1 ${repoUrl} ${projectPath}`);
     if (branch && branch !== "main") {
-      await execPromise(`git fetch --depth 1 origin ${branch}`, { cwd: projectPath });
+      await execPromise(`git fetch --depth 1 origin ${branch}`, {
+        cwd: projectPath,
+      });
       await execPromise(`git checkout ${branch}`, { cwd: projectPath });
     }
 
-    // Scan semgrep
+    // Scan semgrep (avec UTF-8 pour Windows)
     const semgrepJson = await execPromise(
       `semgrep --config auto --json --disable-version-check`,
-      { cwd: projectPath, timeout: 2 * 60 * 1000 }
+      {
+        cwd: projectPath,
+        timeout: 2 * 60 * 1000,
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
+        },
+      },
     );
 
     // Parsing du json
@@ -201,10 +214,9 @@ exports.scanRepo = async (req, res) => {
           securityScore,
           scoreGrade,
         },
-        { transaction: t }
+        { transaction: t },
       );
     });
-
 
     return res.json({
       analysisId: analysis.id,

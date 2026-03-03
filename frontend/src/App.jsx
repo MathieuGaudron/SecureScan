@@ -29,6 +29,13 @@ function App() {
   }
 
   const handleStartScan = async (projectInfo) => {
+    // Vérifier que l'utilisateur est connecté
+    const token = localStorage.getItem('token')
+    if (!user || !token) {
+      setScanError('Vous devez être connecté pour lancer un scan')
+      return
+    }
+
     setIsScanning(true)
     setScanProgress([])
     setAppliedFixes(new Set())
@@ -41,23 +48,30 @@ function App() {
     )
 
     try {
-      // Appel au vrai backend
-      const res = await fetch('/api', {
+      // Appel au vrai backend avec token JWT
+      const res = await fetch('/api/scan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ repoUrl: projectInfo.url, branch: 'main' }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        setScanError(data.error || 'Erreur lors du scan')
+        setScanError(data.error || data.message || 'Erreur lors du scan')
         setIsScanning(false)
         return
       }
 
       // Récupérer les détails de l'analyse avec les vulnérabilités
-      const detailRes = await fetch(`/analyses/${data.analysisId}`)
+      const detailRes = await fetch(`/analyses/${data.analysisId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
       const analysisDetail = await detailRes.json()
 
       setScanResults(analysisDetail)
@@ -96,6 +110,7 @@ function App() {
                   isScanning={isScanning}
                   scanProgress={scanProgress}
                   scanError={scanError}
+                  user={user}
                 />
               }
             />

@@ -119,6 +119,7 @@ exports.scanRepo = async (req, res) => {
       branch: branch || "main",
       status: "analyzing",
       scanStartedAt: new Date(),
+      userId: req.user.id,
     });
 
     // 2) git clone

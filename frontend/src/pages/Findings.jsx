@@ -6,11 +6,12 @@ const severityStyles = {
   high: { label: 'Elevee', bg: 'bg-orange-500', text: 'text-white' },
   medium: { label: 'Moyenne', bg: 'bg-yellow-500', text: 'text-black' },
   low: { label: 'Basse', bg: 'bg-green-500', text: 'text-white' },
+  info: { label: 'Info', bg: 'bg-blue-500', text: 'text-white' },
 }
 
 function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
   const [expanded, setExpanded] = useState(false)
-  const style = severityStyles[finding.severity]
+  const style = severityStyles[finding.severity] || severityStyles.info
 
   return (
     <div
@@ -29,9 +30,9 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
             {style.label}
           </span>
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-gray-300">
-            {finding.owasp}
+            {finding.owaspCategory}
           </span>
-          <span className="text-xs text-gray-500">{finding.tool}</span>
+          <span className="text-xs text-gray-500">{finding.toolSource}</span>
           {isApplied && (
             <span className="ml-auto text-xs text-emerald-400 font-medium">
               ✓ Fix applique
@@ -43,7 +44,7 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
         </div>
         <p className="text-white text-sm font-medium">{finding.title}</p>
         <p className="text-gray-500 text-xs mt-1">
-          {finding.file}:{finding.line}
+          {finding.filePath}:{finding.lineNumber}
         </p>
       </div>
 
@@ -51,53 +52,77 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
         <div className="px-4 pb-4 border-t border-gray-700/50 pt-3">
           <p className="text-gray-400 text-sm mb-3">{finding.description}</p>
 
-          <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mb-2">
-            Correction proposee
-          </p>
-          <div className="bg-[#0f1419] rounded-lg p-3 mb-4">
-            <p className="text-gray-400 text-xs mb-1">
-              {finding.fix.description}
-            </p>
-            <pre className="text-emerald-400 text-sm font-mono whitespace-pre-wrap">
-              {finding.fix.code}
-            </pre>
-          </div>
+          {finding.codeSnippet && (
+            <>
+              <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mb-2">
+                Code vulnerable
+              </p>
+              <div className="bg-[#0f1419] rounded-lg p-3 mb-4">
+                <pre className="text-red-400 text-sm font-mono whitespace-pre-wrap">
+                  {finding.codeSnippet}
+                </pre>
+              </div>
+            </>
+          )}
 
-          {!isApplied ? (
-            <div className="flex gap-3">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onApplyFix(finding.id)
-                }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                ✓ Appliquer le fix
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                }}
-                className="border border-gray-600 text-gray-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-              >
-                ✕ Rejeter
-              </button>
-            </div>
+          {finding.fix ? (
+            <>
+              <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
+                Correction proposee
+              </p>
+              <div className="bg-[#0f1419] rounded-lg p-3 mb-4">
+                <p className="text-gray-400 text-xs mb-1">
+                  {finding.fix.description}
+                </p>
+                {finding.fix.fixedCode && (
+                  <pre className="text-emerald-400 text-sm font-mono whitespace-pre-wrap">
+                    {finding.fix.fixedCode}
+                  </pre>
+                )}
+              </div>
+
+              {!isApplied ? (
+                <div className="flex gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onApplyFix(finding.id)
+                    }}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    ✓ Appliquer le fix
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRejectFix(finding.id)
+                    }}
+                    className="border border-gray-600 text-gray-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+                  >
+                    ✕ Rejeter
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <span className="text-emerald-400 text-sm font-medium py-2">
+                    ✓ Correction appliquee
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRejectFix(finding.id)
+                    }}
+                    className="text-gray-500 text-sm hover:text-red-400 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="flex gap-3">
-              <span className="text-emerald-400 text-sm font-medium py-2">
-                ✓ Correction appliquee
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onRejectFix(finding.id)
-                }}
-                className="text-gray-500 text-sm hover:text-red-400 transition-colors"
-              >
-                Annuler
-              </button>
-            </div>
+            <p className="text-gray-500 text-xs italic">
+              Aucune correction automatique disponible pour le moment
+            </p>
           )}
         </div>
       )}
@@ -126,15 +151,15 @@ function Findings({ scanResults, appliedFixes, onApplyFix, onRejectFix }) {
     )
   }
 
-  const { findings } = scanResults
+  const vulnerabilities = scanResults.vulnerabilities || []
 
-  const filtered = findings.filter((f) => {
+  const filtered = vulnerabilities.filter((f) => {
     if (severityFilter !== 'all' && f.severity !== severityFilter) return false
-    if (owaspFilter !== 'all' && f.owasp !== owaspFilter) return false
+    if (owaspFilter !== 'all' && f.owaspCategory !== owaspFilter) return false
     return true
   })
 
-  const owaspCategories = [...new Set(findings.map((f) => f.owasp))].sort()
+  const owaspCategories = [...new Set(vulnerabilities.map((f) => f.owaspCategory))].sort()
 
   return (
     <div>

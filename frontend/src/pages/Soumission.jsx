@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const languages = ['JavaScript', 'Python', 'PHP', 'Auto-detect']
 
-function Soumission({ onStartScan, isScanning, scanProgress, scanError }) {
+function Soumission({ onStartScan, isScanning, scanProgress, scanError, user }) {
   const [repoUrl, setRepoUrl] = useState('')
   const [selectedLang, setSelectedLang] = useState('JavaScript')
   const [dragActive, setDragActive] = useState(false)
@@ -41,6 +41,12 @@ function Soumission({ onStartScan, isScanning, scanProgress, scanError }) {
       <p className="text-gray-400 mb-10 text-center">
         Soumettez un repository Git ou une archive ZIP pour detecter les vulnerabilites
       </p>
+
+      {!user && (
+        <div className="w-full max-w-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-lg px-4 py-3 mb-6 text-sm text-center">
+          Vous devez être <Link to="/login" className="underline font-medium">connecté</Link> pour lancer une analyse.
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -141,7 +147,7 @@ function Soumission({ onStartScan, isScanning, scanProgress, scanError }) {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isScanning || !repoUrl.trim()}
+          disabled={isScanning || !repoUrl.trim() || !user}
           className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
             isScanning || !repoUrl.trim()
               ? 'bg-gray-600 cursor-not-allowed'

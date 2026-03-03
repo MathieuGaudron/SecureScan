@@ -91,7 +91,8 @@ function gradeFromScore(score) {
 // ---------- CONTROLLER ----------
 exports.scanRepo = async (req, res) => {
   const { repoUrl, branch } = req.body;
-  const userId = req.user.id; // User authentifié via authMiddleware
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized", message: "Token manquant ou invalide" });
 
   if (!repoUrl) {
     return res.status(400).json({ error: "repoUrl manquant" });

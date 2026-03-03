@@ -31,7 +31,7 @@ exports.getAnalysisById = async (req, res) => {
 
     res.json(analysis);
   } catch (err) {
-    console.error(err); 
+    console.error(err);
     res.status(500).json({ error: "Erreur récupération analyse" });
   }
 };

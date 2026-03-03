@@ -15,6 +15,19 @@ const owaspColors = [
   '#3b82f6', '#8b5cf6',
 ]
 
+const owaspNames = {
+  A01: 'Broken Access Control',
+  A02: 'Cryptographic Failures',
+  A03: 'Injection',
+  A04: 'Insecure Design',
+  A05: 'Security Misconfiguration',
+  A06: 'Vulnerable Components',
+  A07: 'Auth Failures',
+  A08: 'Data Integrity Failures',
+  A09: 'Logging Failures',
+  A10: 'SSRF',
+}
+
 const severityConfig = {
   critical: { label: 'CRITIQUE', color: '#ef4444' },
   high: { label: 'ELEVEE', color: '#f97316' },
@@ -88,8 +101,39 @@ function Dashboard({ scanResults }) {
     )
   }
 
-  const { project, score, grade, summary, tools, owaspDistribution, owaspCovered } =
-    scanResults
+  // Construire les données depuis la réponse API
+  const score = scanResults.securityScore ?? 0
+  const grade = scanResults.scoreGrade ?? 'F'
+  const summary = {
+    total: scanResults.totalVulnerabilities ?? 0,
+    critical: scanResults.criticalCount ?? 0,
+    high: scanResults.highCount ?? 0,
+    medium: scanResults.mediumCount ?? 0,
+    low: scanResults.lowCount ?? 0,
+  }
+
+  // Distribution OWASP depuis les vulnérabilités
+  const vulns = scanResults.vulnerabilities || []
+  const owaspCounts = {}
+  vulns.forEach((v) => {
+    const cat = v.owaspCategory || 'Other'
+    owaspCounts[cat] = (owaspCounts[cat] || 0) + 1
+  })
+
+  const owaspDistribution = Object.keys(owaspNames).map((id) => ({
+    id,
+    name: owaspNames[id],
+    count: owaspCounts[id] || 0,
+  }))
+
+  const owaspCovered = owaspDistribution.filter((d) => d.count > 0).length
+
+  // Outils (pour l'instant que Semgrep)
+  const tools = [
+    { name: 'Semgrep (SAST)', icon: 'search', findings: summary.total },
+    { name: 'npm audit', icon: 'package', findings: 0 },
+    { name: 'ESLint Security', icon: 'check', findings: 0 },
+  ]
 
   return (
     <div>
@@ -100,7 +144,7 @@ function Dashboard({ scanResults }) {
             Resultats d&apos;analyse
           </h1>
           <p className="text-gray-400">
-            {project.name} — {summary.total} vulnerabilites detectees
+            {scanResults.repositoryName} — {summary.total} vulnerabilites detectees
           </p>
         </div>
         <div className="flex gap-3">

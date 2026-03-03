@@ -37,10 +37,7 @@ app.get("/api/health", (req, res) => {
 // ROUTES
 // ========================================
 app.use("/api/users", userRoutes);
-app.use("/api", scanRoutes);
-app.use("/analyses", analysisRoutes);
-
-
+app.use("/api/scan", scanRoutes);
 
 // TODO: Import et enregistrer les routes API
 // const analysisRoutes = require('./routes/analysis.routes');

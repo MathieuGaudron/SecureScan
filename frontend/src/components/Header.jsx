@@ -1,6 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 
-function Header() {
+function Header({ user, onLogout }) {
   return (
     <header className="border-b border-gray-800 bg-[#0f1419]">
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -51,6 +51,37 @@ function Header() {
             Findings
           </NavLink>
         </nav>
+
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
+              <span className="text-gray-400 text-sm">
+                {user.username || user.email}
+              </span>
+              <button
+                onClick={onLogout}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              >
+                Déconnexion
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              >
+                Connexion
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+              >
+                Inscription
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </header>
   )

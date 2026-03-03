@@ -44,7 +44,7 @@ const Analysis = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: "main",
     },
-
+    
     language: {
       type: DataTypes.STRING,
       allowNull: true,

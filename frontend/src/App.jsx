@@ -3,6 +3,8 @@ import Header from './components/Header'
 import Soumission from './pages/Soumission'
 import Dashboard from './pages/Dashboard'
 import Findings from './pages/Findings'
+import Login from './pages/Login'
+import Register from './pages/Register'
 import { useState } from 'react'
 import { mockScanResults } from './data/mockData'
 
@@ -11,6 +13,20 @@ function App() {
   const [isScanning, setIsScanning] = useState(false)
   const [scanProgress, setScanProgress] = useState([])
   const [appliedFixes, setAppliedFixes] = useState(new Set())
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user')
+    return saved ? JSON.parse(saved) : null
+  })
+
+  const handleLogin = (userData) => {
+    setUser(userData)
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
 
   const handleStartScan = (projectInfo) => {
     setIsScanning(true)
@@ -45,7 +61,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-[#0f1419]">
-        <Header />
+        <Header user={user} onLogout={handleLogout} />
         <main className="max-w-6xl mx-auto px-6 py-8">
           <Routes>
             <Route
@@ -72,6 +88,14 @@ function App() {
                   onRejectFix={handleRejectFix}
                 />
               }
+            />
+            <Route
+              path="/login"
+              element={<Login onLogin={handleLogin} />}
+            />
+            <Route
+              path="/register"
+              element={<Register onLogin={handleLogin} />}
             />
           </Routes>
         </main>

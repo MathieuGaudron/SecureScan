@@ -165,6 +165,19 @@ const tools = [
             {scanResults.repositoryName} — {summary.total} vulnerabilites
             detectees
           </p>
+          {scanResults.language && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-gray-500">Langages détectés :</span>
+              {scanResults.language.split(", ").map((lang) => (
+                <span
+                  key={lang}
+                  className="px-2 py-0.5 rounded text-xs font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                >
+                  {lang}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-3">
           <button

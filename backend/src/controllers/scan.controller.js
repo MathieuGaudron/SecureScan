@@ -483,6 +483,7 @@ exports.scanRepo = async (req, res) => {
           infoCount: counts.info,
           securityScore,
           scoreGrade,
+          language,
         },
         { transaction: t },
       );

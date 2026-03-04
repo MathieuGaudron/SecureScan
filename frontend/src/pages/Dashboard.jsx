@@ -125,9 +125,17 @@ function Dashboard({ scanResults }) {
     owaspCounts[cat] = (owaspCounts[cat] || 0) + 1;
   });
 
+  // Utiliser les noms OWASP depuis l'API si disponibles, sinon fallback sur owaspNames
+  const owaspNamesFromApi = {};
+  vulns.forEach((v) => {
+    if (v.owaspCategory && v.owaspName) {
+      owaspNamesFromApi[v.owaspCategory] = v.owaspName;
+    }
+  });
+
   const owaspDistribution = Object.keys(owaspNames).map((id) => ({
     id,
-    name: owaspNames[id],
+    name: owaspNamesFromApi[id] || owaspNames[id],
     count: owaspCounts[id] || 0,
   }));
 

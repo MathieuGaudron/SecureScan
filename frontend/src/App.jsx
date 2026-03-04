@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import Soumission from "./pages/Soumission";
 import Dashboard from "./pages/Dashboard";
 import Findings from "./pages/Findings";
+import Historique from "./pages/Historique";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { useState } from "react";
@@ -103,12 +104,29 @@ function App() {
     setAppliedFixes((prev) => new Set([...prev, findingId]));
   };
 
-  const handleRejectFix = (findingId) => {
-    setAppliedFixes((prev) => {
-      const next = new Set(prev);
-      next.delete(findingId);
-      return next;
-    });
+  const handleRejectFix = async (fixId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `http://localhost:3000/api/fixes/${fixId}/reject`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur lors du rejet du fix");
+      }
+
+      console.log("Fix rejeté avec succès");
+      // Rafraîchir les résultats si nécessaire
+    } catch (error) {
+      console.error("Erreur handleRejectFix:", error);
+    }
   };
 
   return (
@@ -144,6 +162,7 @@ function App() {
                 />
               }
             />
+            <Route path="/historique" element={<Historique />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route
               path="/register"

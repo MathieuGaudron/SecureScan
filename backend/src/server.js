@@ -7,6 +7,7 @@ const scanRoutes = require("./routes/scan.routes");
 const userRoutes = require("./routes/user.routes");
 const analysisRoutes = require("./routes/analysis.routes");
 const vulnerabilityRoutes = require("./routes/vulnerability.routes");
+const fixRoutes = require("./routes/fix.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/scan", scanRoutes);
 app.use("/api/analysis", analysisRoutes);
 app.use("/api/vulnerabilities", vulnerabilityRoutes);
+app.use("/api/fixes", fixRoutes);
 
 // ========================================
 // ERROR HANDLING

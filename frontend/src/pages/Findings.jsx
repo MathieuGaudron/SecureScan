@@ -11,7 +11,48 @@ const severityStyles = {
 
 function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
   const [expanded, setExpanded] = useState(false);
+  const [generatedFix, setGeneratedFix] = useState(finding.fix || null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
   const style = severityStyles[finding.severity] || severityStyles.info;
+
+  const generateFix = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `http://localhost:3000/api/fixes/generate/${finding.id}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la génération du fix");
+      }
+
+      const data = await response.json();
+      setGeneratedFix(data.fix);
+    } catch (err) {
+      console.error("Erreur generateFix:", err);
+      setError(err.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleReject = async (e) => {
+    e.stopPropagation();
+    if (generatedFix?.fix?.id) {
+      await onRejectFix(generatedFix.fix.id);
+      setGeneratedFix(null); // Faire disparaître la correction
+    }
+  };
 
   return (
     <div
@@ -30,7 +71,8 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
             {style.label}
           </span>
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-gray-300">
-            {finding.owaspCategory}{finding.owaspName ? ` - ${finding.owaspName}` : ""}
+            {finding.owaspCategory}
+            {finding.owaspName ? ` - ${finding.owaspName}` : ""}
           </span>
           <span className="text-xs text-gray-500">{finding.toolSource}</span>
           {isApplied && (
@@ -57,7 +99,9 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
               <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">
                 OWASP {finding.owaspCategory} - {finding.owaspName}
               </p>
-              <p className="text-gray-400 text-xs">{finding.owaspDescription}</p>
+              <p className="text-gray-400 text-xs">
+                {finding.owaspDescription}
+              </p>
             </div>
           )}
 
@@ -74,20 +118,114 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
             </>
           )}
 
-          {finding.fix ? (
+          {/* Affichage du suggestedFix (autofix Semgrep) si disponible */}
+          {finding.suggestedFix && !generatedFix && (
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <p className="text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
+                Correction Semgrep
+              </p>
+              <pre className="text-blue-300 text-sm font-mono whitespace-pre-wrap">
+                {finding.suggestedFix}
+              </pre>
+              <p className="text-gray-400 text-xs mt-2 italic">
+                Correction automatique détectée par Semgrep
+              </p>
+            </div>
+          )}
+
+          {generatedFix ? (
             <>
               <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
                 Correction proposee
               </p>
               <div className="bg-[#0f1419] rounded-lg p-3 mb-4">
-                <p className="text-gray-400 text-xs mb-1">
-                  {finding.fix.description}
-                </p>
-                {finding.fix.fixedCode && (
-                  <pre className="text-emerald-400 text-sm font-mono whitespace-pre-wrap">
-                    {finding.fix.fixedCode}
-                  </pre>
+                {/* Titre de la correction */}
+                {generatedFix.fix?.title && (
+                  <p className="text-emerald-300 text-sm font-semibold mb-2">
+                    {generatedFix.fix.title}
+                  </p>
                 )}
+
+                {/* Type et confiance */}
+                <div className="flex gap-2 mb-3">
+                  {generatedFix.confidence && (
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        generatedFix.confidence === "high"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : generatedFix.confidence === "medium"
+                            ? "bg-yellow-500/20 text-yellow-400"
+                            : "bg-gray-500/20 text-gray-400"
+                      }`}
+                    >
+                      Confiance: {generatedFix.confidence}
+                    </span>
+                  )}
+                  {generatedFix.canAutoApply && (
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
+                      Auto-applicable
+                    </span>
+                  )}
+                </div>
+
+                {/* Code avant/après */}
+                {generatedFix.fix?.diff && (
+                  <div className="space-y-2 mb-3">
+                    {generatedFix.fix.diff.before && (
+                      <div>
+                        <p className="text-red-400 text-xs font-medium mb-1">
+                          Avant:
+                        </p>
+                        <pre className="text-red-300 text-sm font-mono whitespace-pre-wrap bg-red-900/10 rounded p-2">
+                          {generatedFix.fix.diff.before}
+                        </pre>
+                      </div>
+                    )}
+                    {generatedFix.fix.diff.after && (
+                      <div>
+                        <p className="text-emerald-400 text-xs font-medium mb-1">
+                          Après:
+                        </p>
+                        <pre className="text-emerald-300 text-sm font-mono whitespace-pre-wrap bg-emerald-900/10 rounded p-2">
+                          {generatedFix.fix.diff.after}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Explication */}
+                {generatedFix.fix?.explanation && (
+                  <div className="mb-3">
+                    <p className="text-gray-400 text-xs leading-relaxed">
+                      {generatedFix.fix.explanation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Ressources */}
+                {generatedFix.fix?.resources &&
+                  generatedFix.fix.resources.length > 0 && (
+                    <div className="border-t border-gray-700 pt-2">
+                      <p className="text-cyan-400 text-xs font-medium mb-1">
+                        Ressources:
+                      </p>
+                      <ul className="space-y-1">
+                        {generatedFix.fix.resources.map((resource, idx) => (
+                          <li key={idx}>
+                            <a
+                              href={resource}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-cyan-400 hover:text-cyan-300 text-xs underline"
+                            >
+                              {resource}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
               </div>
 
               {!isApplied ? (
@@ -99,28 +237,22 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
                     }}
                     className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                   >
-                    ✓ Appliquer le fix
+                    Appliquer le fix
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRejectFix(finding.id);
-                    }}
+                    onClick={handleReject}
                     className="border border-gray-600 text-gray-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
                   >
-                    ✕ Rejeter
+                    Rejeter
                   </button>
                 </div>
               ) : (
                 <div className="flex gap-3">
                   <span className="text-emerald-400 text-sm font-medium py-2">
-                    ✓ Correction appliquee
+                    Correction appliquee
                   </span>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRejectFix(finding.id);
-                    }}
+                    onClick={handleReject}
                     className="text-gray-500 text-sm hover:text-red-400 transition-colors"
                   >
                     Annuler
@@ -129,9 +261,48 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
               )}
             </>
           ) : (
-            <p className="text-gray-500 text-xs italic">
-              Aucune correction automatique disponible pour le moment
-            </p>
+            <div>
+              {error && (
+                <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3 mb-3">
+                  <p className="text-red-400 text-xs">{error}</p>
+                </div>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  generateFix();
+                }}
+                disabled={isGenerating}
+                className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors w-full"
+              >
+                {isGenerating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Generation en cours...
+                  </span>
+                ) : (
+                  "Generer une correction"
+                )}
+              </button>
+              <p className="text-gray-500 text-xs italic mt-2 text-center">
+                Génère une correction basée sur les templates OWASP
+              </p>
+            </div>
           )}
         </div>
       )}

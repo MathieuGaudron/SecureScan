@@ -1,4 +1,5 @@
 const { Fix, Vulnerability } = require("../models");
+const fixService = require("../services/fix.service");
 
 // POST /api/fixes/generate/:vulnerabilityId - Générer un fix pour une vulnérabilité
 const generateFix = async (req, res) => {
@@ -11,26 +12,55 @@ const generateFix = async (req, res) => {
     }
 
     // Vérifier si un fix existe déjà
-    const existingFix = await Fix.findOne({ where: { vulnerabilityId } });
+    let existingFix = await Fix.findOne({
+      where: { vulnerabilityId },
+    });
+
+    // ✅ Utiliser fix.service pour générer le fix
+    const generatedFix = fixService.generateFix(
+      {
+        ruleId: vulnerability.ruleId,
+        severity: vulnerability.severity,
+        owaspCategory: vulnerability.owaspCategory,
+        codeSnippet: vulnerability.codeSnippet,
+      },
+      vulnerability.suggestedFix, // Autofix Semgrep si disponible
+    );
+
+    let fix;
+
     if (existingFix) {
-      return res.json({ message: "Fix déjà existant", fix: existingFix });
+      // Si le fix existe et est rejeté, le remettre à "proposed"
+      if (existingFix.status === "rejected") {
+        existingFix.status = "proposed";
+        await existingFix.save();
+      }
+      fix = existingFix;
+    } else {
+      // Créer l'entrée Fix en DB
+      fix = await Fix.create({
+        vulnerabilityId,
+        fixType: generatedFix.fixType,
+        description: generatedFix.explanation,
+        originalCode: generatedFix.originalCode || null,
+        fixedCode: generatedFix.fixedCode || null,
+        filePath: vulnerability.filePath,
+        status: "proposed",
+      });
     }
 
-    // TODO: Utiliser fix.service pour générer le fix via templates
-    // Pour l'instant on crée un fix placeholder
-    const fix = await Fix.create({
-      vulnerabilityId,
-      fixType: "template",
-      description: `Correction pour: ${vulnerability.title}`,
-      originalCode: vulnerability.codeSnippet || null,
-      fixedCode: null, // Sera rempli par le service
-      filePath: vulnerability.filePath,
-      status: "proposed",
+    // Formatter la réponse pour le frontend
+    const formattedFix = fixService.formatFixForDisplay(vulnerability, {
+      ...generatedFix,
+      id: fix.id,
+      status: fix.status,
     });
 
     res.status(201).json({
       message: "Fix généré avec succès",
-      fix,
+      fix: formattedFix,
+      confidence: generatedFix.confidence,
+      canAutoApply: fixService.canAutoApply(generatedFix),
     });
   } catch (error) {
     console.error("Erreur generateFix:", error);

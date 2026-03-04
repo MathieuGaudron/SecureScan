@@ -23,7 +23,13 @@ const Fix = sequelize.define(
 
     // Type de correction
     fixType: {
-      type: DataTypes.ENUM("template", "ai-generated", "manual"),
+      type: DataTypes.ENUM(
+        "semgrep-autofix",
+        "template",
+        "generic",
+        "ai-generated",
+        "manual",
+      ),
       defaultValue: "template",
     },
 

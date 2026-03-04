@@ -30,7 +30,7 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
             {style.label}
           </span>
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-gray-300">
-            {finding.owaspCategory}
+            {finding.owaspCategory}{finding.owaspName ? ` - ${finding.owaspName}` : ""}
           </span>
           <span className="text-xs text-gray-500">{finding.toolSource}</span>
           {isApplied && (
@@ -51,6 +51,15 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
       {expanded && (
         <div className="px-4 pb-4 border-t border-gray-700/50 pt-3">
           <p className="text-gray-400 text-sm mb-3">{finding.description}</p>
+
+          {finding.owaspDescription && (
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 mb-3">
+              <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">
+                OWASP {finding.owaspCategory} - {finding.owaspName}
+              </p>
+              <p className="text-gray-400 text-xs">{finding.owaspDescription}</p>
+            </div>
+          )}
 
           {finding.codeSnippet && (
             <>

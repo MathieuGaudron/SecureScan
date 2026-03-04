@@ -4,6 +4,7 @@ const path = require("path");
 
 const { sequelize } = require("../database/connection");
 const { Analysis, Vulnerability } = require("../models");
+const owaspMapping = require("../utils/owasp-mapping.json");
 
 // -------- MOTEUR DE SCAN ----------
 // Extraire un snippet de code depuis un fichier
@@ -88,6 +89,16 @@ function extractOwaspCategory(metadata) {
     return m ? `A${m[1]}` : "Other";
   }
   return "Other";
+}
+
+function getOwaspInfo(category) {
+  const info = owaspMapping[category];
+  if (!info) return { owaspName: null, owaspDescription: null, owaspSeverity: null };
+  return {
+    owaspName: info.name,
+    owaspDescription: info.description,
+    owaspSeverity: info.severity,
+  };
 }
 
 function extractCweId(metadata) {
@@ -213,12 +224,17 @@ exports.scanRepo = async (req, res) => {
         );
       }
 
+      const owaspCategory = extractOwaspCategory(metadata);
+      const owaspInfo = getOwaspInfo(owaspCategory);
+
       return {
         analysisId: analysis.id,
         title: r?.check_id || "Semgrep finding",
         description: r?.extra?.message || null,
-        severity,
-        owaspCategory: extractOwaspCategory(metadata),
+        severity: owaspInfo.owaspSeverity || severity,
+        owaspCategory,
+        owaspName: owaspInfo.owaspName,
+        owaspDescription: owaspInfo.owaspDescription,
         cweId: extractCweId(metadata),
         filePath: r?.path || null,
         lineNumber: r?.start?.line ?? null,

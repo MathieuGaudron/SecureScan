@@ -1,0 +1,176 @@
+{
+  "A01": {
+    "id": "A01",
+    "name": "Broken Access Control",
+    "description": "L'utilisateur peut acceder a des ressources ou actions sans autorisation appropriee.",
+    "severity": "critical",
+    "examples": [
+      "Acces a des pages admin sans authentification",
+      "Modification de l'ID dans l'URL pour voir les donnees d'un autre utilisateur",
+      "Absence de verification de role sur les routes protegees"
+    ],
+    "rules": [
+      "no-auth-middleware",
+      "missing-role-check",
+      "idor-vulnerability",
+      "path-traversal"
+    ]
+  },
+  "A02": {
+    "id": "A02",
+    "name": "Cryptographic Failures",
+    "description": "Donnees sensibles exposees a cause d'un chiffrement faible, absent ou mal configure.",
+    "severity": "high",
+    "examples": [
+      "Mots de passe stockes en clair ou avec MD5/SHA1",
+      "Communication HTTP au lieu de HTTPS",
+      "Cles API ou secrets en dur dans le code"
+    ],
+    "rules": [
+      "hardcoded-secret",
+      "weak-hash-algorithm",
+      "missing-encryption",
+      "http-no-tls"
+    ]
+  },
+  "A03": {
+    "id": "A03",
+    "name": "Injection",
+    "description": "Des donnees non fiables sont envoyees a un interpreteur comme commande ou requete.",
+    "severity": "critical",
+    "examples": [
+      "Concatenation directe d'input dans une requete SQL",
+      "Utilisation de eval() avec des donnees utilisateur",
+      "Injection de commandes OS via child_process"
+    ],
+    "rules": [
+      "sql-injection",
+      "nosql-injection",
+      "command-injection",
+      "eval-usage",
+      "xss-reflected",
+      "xss-stored"
+    ]
+  },
+  "A04": {
+    "id": "A04",
+    "name": "Insecure Design",
+    "description": "Failles liees a des choix d'architecture ou de conception non securises.",
+    "severity": "medium",
+    "examples": [
+      "Pas de limite de tentatives de connexion (brute force possible)",
+      "Questions de securite faciles a deviner",
+      "Absence de validation cote serveur"
+    ],
+    "rules": [
+      "no-rate-limiting",
+      "missing-server-validation",
+      "insecure-password-reset"
+    ]
+  },
+  "A05": {
+    "id": "A05",
+    "name": "Security Misconfiguration",
+    "description": "Mauvaise configuration de securite sur le serveur, framework ou application.",
+    "severity": "high",
+    "examples": [
+      "Mode debug active en production",
+      "Headers de securite manquants (CSP, X-Frame-Options)",
+      "Permissions trop larges sur les fichiers ou API",
+      "Comptes par defaut non desactives"
+    ],
+    "rules": [
+      "debug-mode-enabled",
+      "missing-security-headers",
+      "default-credentials",
+      "cors-misconfiguration",
+      "directory-listing-enabled"
+    ]
+  },
+  "A06": {
+    "id": "A06",
+    "name": "Vulnerable and Outdated Components",
+    "description": "Utilisation de composants (librairies, frameworks) avec des vulnerabilites connues ou qui ne sont plus maintenus.",
+    "severity": "high",
+    "examples": [
+      "Dependance npm avec une CVE connue",
+      "Version obsolete d'un framework (Express, React, etc.)",
+      "Librairie abandonnee sans correctifs de securite"
+    ],
+    "rules": [
+      "outdated-dependency",
+      "known-cve",
+      "unmaintained-package"
+    ]
+  },
+  "A07": {
+    "id": "A07",
+    "name": "Identification and Authentication Failures",
+    "description": "Failles dans les mecanismes d'authentification permettant a un attaquant d'usurper une identite.",
+    "severity": "critical",
+    "examples": [
+      "Mots de passe faibles autorises",
+      "Absence de protection contre le brute force",
+      "Tokens de session previsibles ou non expires",
+      "JWT mal implemente (pas de verification de signature)"
+    ],
+    "rules": [
+      "weak-password-policy",
+      "missing-brute-force-protection",
+      "insecure-session-management",
+      "jwt-no-verify",
+      "hardcoded-credentials"
+    ]
+  },
+  "A08": {
+    "id": "A08",
+    "name": "Software and Data Integrity Failures",
+    "description": "Absence de verification d'integrite sur le code, les mises a jour ou les donnees deserializees.",
+    "severity": "high",
+    "examples": [
+      "Deserialisation de donnees non fiables (JSON.parse sans validation)",
+      "Chargement de scripts depuis un CDN sans integrite (SRI)",
+      "Pipeline CI/CD sans verification d'integrite"
+    ],
+    "rules": [
+      "unsafe-deserialization",
+      "missing-sri",
+      "insecure-ci-cd",
+      "prototype-pollution"
+    ]
+  },
+  "A09": {
+    "id": "A09",
+    "name": "Security Logging and Monitoring Failures",
+    "description": "Absence ou insuffisance de logs et de surveillance pour detecter les attaques en cours.",
+    "severity": "medium",
+    "examples": [
+      "Echecs de connexion non logues",
+      "Pas d'alerte sur les activites suspectes",
+      "Logs contenant des donnees sensibles (mots de passe, tokens)"
+    ],
+    "rules": [
+      "missing-auth-logging",
+      "sensitive-data-in-logs",
+      "no-monitoring",
+      "insufficient-logging"
+    ]
+  },
+  "A10": {
+    "id": "A10",
+    "name": "Server-Side Request Forgery (SSRF)",
+    "description": "L'application envoie des requetes HTTP vers une destination controlee par l'attaquant via des inputs non valides.",
+    "severity": "high",
+    "examples": [
+      "URL fournie par l'utilisateur utilisee dans fetch() sans validation",
+      "Acces a des services internes (localhost, metadata cloud) via une URL manipulee",
+      "Redirection ouverte exploitee pour acceder au reseau interne"
+    ],
+    "rules": [
+      "ssrf-fetch",
+      "ssrf-request",
+      "open-redirect",
+      "unvalidated-url"
+    ]
+  }
+}

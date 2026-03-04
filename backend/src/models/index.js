@@ -2,6 +2,7 @@ const User = require("./User.model");
 const Analysis = require("./Analysis.model");
 const Vulnerability = require("./Vulnerability.model");
 const Fix = require("./Fix.model");
+const GitHubConnection = require("./GitHubConnection.model");
 
 // Relations entre les modèles
 
@@ -41,9 +42,22 @@ Fix.belongsTo(Vulnerability, {
   as: "vulnerability",
 });
 
+// User <-> GitHubConnection (1:1)
+User.hasOne(GitHubConnection, {
+  foreignKey: "userId",
+  as: "githubConnection",
+  onDelete: "CASCADE",
+});
+
+GitHubConnection.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
 module.exports = {
   User,
   Analysis,
   Vulnerability,
   Fix,
+  GitHubConnection,
 };

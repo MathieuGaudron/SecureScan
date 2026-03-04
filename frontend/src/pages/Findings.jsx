@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const severityStyles = {
@@ -9,7 +9,13 @@ const severityStyles = {
   info: { label: "Info", bg: "bg-blue-500", text: "text-white" },
 };
 
-function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
+function FindingCard({
+  finding,
+  isApplied,
+  onApplyFix,
+  onCancelFix,
+  onRejectFix,
+}) {
   const [expanded, setExpanded] = useState(false);
   const [generatedFix, setGeneratedFix] = useState(finding.fix || null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -252,7 +258,10 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
                     Correction appliquee
                   </span>
                   <button
-                    onClick={handleReject}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCancelFix(finding.id);
+                    }}
                     className="text-gray-500 text-sm hover:text-red-400 transition-colors"
                   >
                     Annuler
@@ -310,10 +319,126 @@ function FindingCard({ finding, isApplied, onApplyFix, onRejectFix }) {
   );
 }
 
-function Findings({ scanResults, appliedFixes, onApplyFix, onRejectFix }) {
+function Findings({
+  scanResults,
+  appliedFixes,
+  onApplyFix,
+  onCancelFix,
+  onRejectFix,
+}) {
   const [severityFilter, setSeverityFilter] = useState("all");
   const [owaspFilter, setOwaspFilter] = useState("all");
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [pushMessage, setPushMessage] = useState(null);
   const navigate = useNavigate();
+
+  // Vérifier la connexion GitHub au chargement
+  useEffect(() => {
+    checkGitHubConnection();
+  }, []);
+
+  const checkGitHubConnection = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3000/api/github/status", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGithubConnected(data.connected);
+      }
+    } catch (err) {
+      console.error("Erreur checkGitHubConnection:", err);
+    }
+  };
+
+  const handlePushFixes = async () => {
+    if (!githubConnected) {
+      navigate("/settings");
+      return;
+    }
+
+    if (appliedFixes.size === 0) {
+      return;
+    }
+
+    try {
+      setIsPushing(true);
+      setPushMessage(null);
+
+      const token = localStorage.getItem("token");
+
+      // Récupérer les fixes depuis la BDD pour les vulnérabilités appliquées
+      const fixesToPush = [];
+      for (const vulnId of appliedFixes) {
+        const vuln = scanResults.vulnerabilities.find((v) => v.id === vulnId);
+        if (!vuln) continue;
+
+        // Chercher le fix en BDD
+        const fixResponse = await fetch(
+          `http://localhost:3000/api/vulnerabilities/${vulnId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (fixResponse.ok) {
+          const vulnData = await fixResponse.json();
+          if (vulnData.fix && vulnData.fix.fixedCode) {
+            fixesToPush.push({
+              filePath: vuln.filePath,
+              fixedCode: vulnData.fix.fixedCode,
+              description: vuln.title,
+            });
+          }
+        }
+      }
+
+      if (fixesToPush.length === 0) {
+        setPushMessage({
+          type: "error",
+          text: "Aucune correction valide à pousser. Assurez-vous d'avoir généré et appliqué les corrections.",
+        });
+        setIsPushing(false);
+        return;
+      }
+
+      const response = await fetch("http://localhost:3000/api/github/push", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          analysisId: scanResults.id,
+          repositoryUrl:
+            scanResults.repositoryUrl || scanResults.repositoryName,
+          fixes: fixesToPush,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Erreur lors du push");
+      }
+
+      setPushMessage({
+        type: "success",
+        text: `Pull Request créée avec succès ! ${data.pullRequest.url}`,
+        prUrl: data.pullRequest.url,
+      });
+    } catch (err) {
+      console.error("Erreur handlePushFixes:", err);
+      setPushMessage({ type: "error", text: err.message });
+    } finally {
+      setIsPushing(false);
+    }
+  };
 
   if (!scanResults) {
     return (
@@ -389,6 +514,7 @@ function Findings({ scanResults, appliedFixes, onApplyFix, onRejectFix }) {
             finding={finding}
             isApplied={appliedFixes.has(finding.id)}
             onApplyFix={onApplyFix}
+            onCancelFix={onCancelFix}
             onRejectFix={onRejectFix}
           />
         ))}
@@ -396,10 +522,69 @@ function Findings({ scanResults, appliedFixes, onApplyFix, onRejectFix }) {
 
       {/* Push Button */}
       {appliedFixes.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2">
-          <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-emerald-500/20 transition-all hover:scale-105">
-            Push les corrections sur GitHub ({appliedFixes.size} fix
-            {appliedFixes.size > 1 ? "s" : ""})
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+          {pushMessage && (
+            <div
+              className={`px-4 py-2 rounded-lg text-sm ${
+                pushMessage.type === "success"
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-red-500/20 text-red-400 border border-red-500/30"
+              }`}
+            >
+              {pushMessage.text}
+              {pushMessage.prUrl && (
+                <a
+                  href={pushMessage.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 underline hover:text-green-300"
+                >
+                  Voir la PR
+                </a>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={handlePushFixes}
+            disabled={isPushing}
+            className={`${
+              githubConnected
+                ? "bg-emerald-500 hover:bg-emerald-600"
+                : "bg-orange-500 hover:bg-orange-600"
+            } text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2`}
+          >
+            {isPushing ? (
+              <>
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Push en cours...
+              </>
+            ) : githubConnected ? (
+              <>
+                Push les corrections sur GitHub ({appliedFixes.size} fix
+                {appliedFixes.size > 1 ? "s" : ""})
+              </>
+            ) : (
+              <>
+                Connecter GitHub pour push ({appliedFixes.size} fix
+                {appliedFixes.size > 1 ? "s" : ""})
+              </>
+            )}
           </button>
         </div>
       )}

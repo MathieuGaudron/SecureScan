@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-const languages = ["JavaScript", "Python", "PHP", "Auto-detect"];
-
 function Soumission({
   onStartScan,
   isScanning,
@@ -12,9 +10,6 @@ function Soumission({
 }) {
   const [repoUrl, setRepoUrl] = useState(() => {
     return localStorage.getItem("lastRepoUrl") || "";
-  });
-  const [selectedLang, setSelectedLang] = useState(() => {
-    return localStorage.getItem("lastLanguage") || "JavaScript";
   });
   const [dragActive, setDragActive] = useState(false);
   const navigate = useNavigate();
@@ -26,13 +21,9 @@ function Soumission({
     }
   }, [repoUrl]);
 
-  useEffect(() => {
-    localStorage.setItem("lastLanguage", selectedLang);
-  }, [selectedLang]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const success = await onStartScan({ url: repoUrl, language: selectedLang });
+    const success = await onStartScan({ url: repoUrl });
     if (success) {
       navigate("/dashboard");
     }
@@ -106,27 +97,6 @@ function Soumission({
           <p className="text-gray-400 text-sm">
             ou glissez une archive ZIP ici
           </p>
-        </div>
-
-        {/* Language Selection */}
-        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          Langage detecte
-        </label>
-        <div className="flex gap-2 mb-8">
-          {languages.map((lang) => (
-            <button
-              key={lang}
-              type="button"
-              onClick={() => setSelectedLang(lang)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedLang === lang
-                  ? "bg-emerald-500 text-white"
-                  : "bg-[#0f1419] text-gray-400 border border-gray-600 hover:border-gray-400"
-              }`}
-            >
-              {lang}
-            </button>
-          ))}
         </div>
 
         {/* Error */}

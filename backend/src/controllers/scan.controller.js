@@ -6,7 +6,6 @@ const { sequelize } = require("../database/connection");
 const { Analysis, Vulnerability } = require("../models");
 const owaspMapping = require("../utils/owasp-mapping.json");
 
-
 // Crée un dossier s'il n'existe pas
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
@@ -77,7 +76,6 @@ function extractCodeSnippet(filePath, startLine, endLine, projectPath) {
   }
 }
 
-
 // MAPPING OWASP + SEVERITY
 function mapSemgrepSeverity(semgrepSeverity) {
   const s = String(semgrepSeverity || "").toUpperCase();
@@ -137,8 +135,7 @@ function extractCweId(metadata) {
   return null;
 }
 
-
-// SCORE 
+// SCORE
 function computeScore(counts) {
   let score = 100;
   score -= counts.critical * 20;
@@ -189,7 +186,15 @@ function detectLanguages(projectPath) {
   };
 
   const langSet = new Set();
-  const ignoreDirs = new Set(["node_modules", ".git", "vendor", "dist", "build", "__pycache__", ".next"]);
+  const ignoreDirs = new Set([
+    "node_modules",
+    ".git",
+    "vendor",
+    "dist",
+    "build",
+    "__pycache__",
+    ".next",
+  ]);
 
   function scanDir(dir) {
     try {
@@ -380,7 +385,6 @@ async function runEslint(projectPath, analysisId) {
   }
 }
 
-
 // api scan
 exports.scanRepo = async (req, res) => {
   const { repoUrl, branch } = req.body;
@@ -423,7 +427,9 @@ exports.scanRepo = async (req, res) => {
 
     // 3) Switch branch si nécessaire
     if (branch && branch !== "main") {
-      await execPromise(`git fetch --depth 1 origin ${branch}`, { cwd: projectPath });
+      await execPromise(`git fetch --depth 1 origin ${branch}`, {
+        cwd: projectPath,
+      });
       await execPromise(`git checkout ${branch}`, { cwd: projectPath });
       console.log("🌿 Branch checkout:", branch);
     }
@@ -471,6 +477,9 @@ exports.scanRepo = async (req, res) => {
         );
       }
 
+      // Extraire l'autofix Semgrep s'il existe
+      const suggestedFix = r?.extra?.fix || null;
+
       return {
         analysisId: analysis.id,
         title: r?.check_id || "Semgrep finding",
@@ -489,6 +498,7 @@ exports.scanRepo = async (req, res) => {
         lineNumber: r?.start?.line ?? null,
         lineEndNumber: r?.end?.line ?? null,
         codeSnippet,
+        suggestedFix, // ← Autofix Semgrep
 
         toolSource: "semgrep",
         ruleId: r?.check_id || null,

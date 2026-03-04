@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -91,8 +92,54 @@ function ScoreCircle({ score, grade }) {
 
 function Dashboard({ scanResults }) {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [loadedScanResults, setLoadedScanResults] = useState(scanResults);
+  const [loading, setLoading] = useState(false);
 
-  if (!scanResults) {
+  // Charger les données depuis l'API si un ID est fourni dans l'URL
+  useEffect(() => {
+    if (id) {
+      const fetchAnalysis = async () => {
+        setLoading(true);
+        try {
+          const token = localStorage.getItem("token");
+          const response = await fetch(
+            `http://localhost:3000/api/analysis/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error("Erreur lors du chargement de l'analyse");
+          }
+
+          const data = await response.json();
+          setLoadedScanResults(data);
+        } catch (error) {
+          console.error("Erreur fetchAnalysis:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchAnalysis();
+    } else {
+      setLoadedScanResults(scanResults);
+    }
+  }, [id, scanResults]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-gray-400 text-lg">Chargement de l'analyse...</p>
+      </div>
+    );
+  }
+
+  if (!loadedScanResults) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="text-gray-400 text-lg mb-4">Aucune analyse disponible</p>
@@ -107,18 +154,18 @@ function Dashboard({ scanResults }) {
   }
 
   // Construire les données depuis la réponse API
-  const score = scanResults.securityScore ?? 0;
-  const grade = scanResults.scoreGrade ?? "F";
+  const score = loadedScanResults.securityScore ?? 0;
+  const grade = loadedScanResults.scoreGrade ?? "F";
   const summary = {
-    total: scanResults.totalVulnerabilities ?? 0,
-    critical: scanResults.criticalCount ?? 0,
-    high: scanResults.highCount ?? 0,
-    medium: scanResults.mediumCount ?? 0,
-    low: scanResults.lowCount ?? 0,
+    total: loadedScanResults.totalVulnerabilities ?? 0,
+    critical: loadedScanResults.criticalCount ?? 0,
+    high: loadedScanResults.highCount ?? 0,
+    medium: loadedScanResults.mediumCount ?? 0,
+    low: loadedScanResults.lowCount ?? 0,
   };
 
   // Distribution OWASP depuis les vulnérabilités
-  const vulns = scanResults.vulnerabilities || [];
+  const vulns = loadedScanResults.vulnerabilities || [];
   const owaspCounts = {};
   vulns.forEach((v) => {
     const cat = v.owaspCategory || "Other";
@@ -141,17 +188,19 @@ function Dashboard({ scanResults }) {
 
   const owaspCovered = owaspDistribution.filter((d) => d.count > 0).length;
 
-// Comptage des vulnérabilités par outil
-const semgrepCount = vulns.filter(v => v.toolSource === "semgrep").length;
-const npmAuditCount = vulns.filter(v => v.toolSource === "npm-audit").length;
-const eslintCount = vulns.filter(v => v.toolSource === "eslint").length;
+  // Comptage des vulnérabilités par outil
+  const semgrepCount = vulns.filter((v) => v.toolSource === "semgrep").length;
+  const npmAuditCount = vulns.filter(
+    (v) => v.toolSource === "npm-audit",
+  ).length;
+  const eslintCount = vulns.filter((v) => v.toolSource === "eslint").length;
 
-// Outils exécutés
-const tools = [
-  { name: "Semgrep (SAST)", icon: "search", findings: semgrepCount },
-  { name: "npm audit", icon: "package", findings: npmAuditCount },
-  { name: "ESLint Security", icon: "check", findings: eslintCount },
-];
+  // Outils exécutés
+  const tools = [
+    { name: "Semgrep (SAST)", icon: "search", findings: semgrepCount },
+    { name: "npm audit", icon: "package", findings: npmAuditCount },
+    { name: "ESLint Security", icon: "check", findings: eslintCount },
+  ];
 
   return (
     <div>
@@ -162,13 +211,13 @@ const tools = [
             Resultats d&apos;analyse
           </h1>
           <p className="text-gray-400">
-            {scanResults.repositoryName} — {summary.total} vulnerabilites
+            {loadedScanResults.repositoryName} — {summary.total} vulnerabilites
             detectees
           </p>
-          {scanResults.language && (
+          {loadedScanResults.language && (
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs text-gray-500">Langages détectés :</span>
-              {scanResults.language.split(", ").map((lang) => (
+              {loadedScanResults.language.split(", ").map((lang) => (
                 <span
                   key={lang}
                   className="px-2 py-0.5 rounded text-xs font-medium bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"

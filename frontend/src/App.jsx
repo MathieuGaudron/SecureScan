@@ -152,6 +152,10 @@ function App() {
               element={<Dashboard scanResults={scanResults} />}
             />
             <Route
+              path="/dashboard/:id"
+              element={<Dashboard scanResults={scanResults} />}
+            />
+            <Route
               path="/findings"
               element={
                 <Findings

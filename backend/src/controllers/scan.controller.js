@@ -157,7 +157,61 @@ function gradeFromScore(score) {
   return "F";
 }
 
+// Détecter les langages en scannant tous les fichiers du repo cloné
+function detectLanguages(projectPath) {
+  const extMap = {
+    ".js": "JavaScript",
+    ".jsx": "JavaScript",
+    ".ts": "TypeScript",
+    ".tsx": "TypeScript",
+    ".py": "Python",
+    ".java": "Java",
+    ".rb": "Ruby",
+    ".php": "PHP",
+    ".go": "Go",
+    ".rs": "Rust",
+    ".c": "C",
+    ".cpp": "C++",
+    ".cs": "C#",
+    ".swift": "Swift",
+    ".kt": "Kotlin",
+    ".scala": "Scala",
+    ".html": "HTML",
+    ".css": "CSS",
+    ".yml": "YAML",
+    ".yaml": "YAML",
+    ".sh": "Shell",
+    ".sql": "SQL",
+    ".dart": "Dart",
+    ".lua": "Lua",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+  };
 
+  const langSet = new Set();
+  const ignoreDirs = new Set(["node_modules", ".git", "vendor", "dist", "build", "__pycache__", ".next"]);
+
+  function scanDir(dir) {
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          if (!ignoreDirs.has(entry.name)) {
+            scanDir(path.join(dir, entry.name));
+          }
+        } else {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (extMap[ext]) {
+            langSet.add(extMap[ext]);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  scanDir(projectPath);
+  return [...langSet].sort();
+}
 
 function isNodeProject(projectPath) {
   return fs.existsSync(path.join(projectPath, "package.json"));
@@ -464,6 +518,10 @@ exports.scanRepo = async (req, res) => {
     const total = allRows.length;
     const securityScore = computeScore(counts);
     const scoreGrade = gradeFromScore(securityScore);
+
+    // Détecter les langages du projet (scan du dossier cloné)
+    const detectedLanguages = detectLanguages(projectPath);
+    const language = detectedLanguages.join(", ") || null;
 
     // 8) Insertion DB en transaction
     await sequelize.transaction(async (t) => {

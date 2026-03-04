@@ -53,15 +53,31 @@ function App() {
     );
 
     try {
-      // Appel au vrai backend avec token JWT
-      const res = await fetch("/api/scan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ repoUrl: projectInfo.url, branch: "main" }),
-      });
+      let res;
+
+      if (projectInfo.zipFile) {
+        // Mode ZIP : envoi du fichier via FormData
+        const formData = new FormData();
+        formData.append("zipFile", projectInfo.zipFile);
+
+        res = await fetch("/api/scan/zip", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      } else {
+        // Mode Git URL (existant)
+        res = await fetch("/api/scan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ repoUrl: projectInfo.url, branch: "main" }),
+        });
+      }
 
       const data = await res.json();
 

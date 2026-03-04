@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 function Soumission({
@@ -11,7 +11,9 @@ function Soumission({
   const [repoUrl, setRepoUrl] = useState(() => {
     return localStorage.getItem("lastRepoUrl") || "";
   });
+  const [zipFile, setZipFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   // Sauvegarder automatiquement dans localStorage
@@ -23,7 +25,7 @@ function Soumission({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const success = await onStartScan({ url: repoUrl });
+    const success = await onStartScan({ url: repoUrl, zipFile });
     if (success) {
       navigate("/dashboard");
     }
@@ -43,6 +45,26 @@ function Soumission({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.name.toLowerCase().endsWith(".zip")) {
+        setZipFile(file);
+        setRepoUrl("");
+      }
+    }
+  };
+
+  const handleZipClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.name.toLowerCase().endsWith(".zip")) {
+      setZipFile(file);
+      setRepoUrl("");
+    }
   };
 
   return (
@@ -87,16 +109,42 @@ function Soumission({
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
+          onClick={handleZipClick}
           className={`border-2 border-dashed rounded-lg p-8 text-center mb-6 transition-colors cursor-pointer ${
             dragActive
               ? "border-emerald-500 bg-emerald-500/10"
-              : "border-gray-600 hover:border-gray-500"
+              : zipFile
+                ? "border-emerald-500 bg-emerald-500/5"
+                : "border-gray-600 hover:border-gray-500"
           }`}
         >
-          <div className="text-3xl mb-2">📁</div>
-          <p className="text-gray-400 text-sm">
-            ou glissez une archive ZIP ici
-          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".zip"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          {zipFile ? (
+            <>
+              <div className="text-3xl mb-2">✅</div>
+              <p className="text-emerald-400 text-sm font-medium">
+                {zipFile.name}
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                {(zipFile.size / 1024 / 1024).toFixed(1)} Mo — Cliquez pour
+                changer
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="text-3xl mb-2">📁</div>
+              <p className="text-gray-400 text-sm">
+                Glissez une archive ZIP ici ou{" "}
+                <span className="text-emerald-400 underline">parcourir</span>
+              </p>
+            </>
+          )}
         </div>
 
         {/* Error */}
@@ -145,9 +193,9 @@ function Soumission({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isScanning || !repoUrl.trim() || !user}
+          disabled={isScanning || (!repoUrl.trim() && !zipFile) || !user}
           className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
-            isScanning || !repoUrl.trim()
+            isScanning || (!repoUrl.trim() && !zipFile)
               ? "bg-gray-600 cursor-not-allowed"
               : "bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98]"
           }`}

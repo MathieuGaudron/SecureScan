@@ -1,6 +1,7 @@
 const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const AdmZip = require("adm-zip");
 
 const { sequelize } = require("../database/connection");
 const { Analysis, Vulnerability } = require("../models");
@@ -103,12 +104,29 @@ function mapEslintSeverity(n) {
 }
 
 // Sort le code OWASP (ex: A01, A02...) depuis les metadata Semgrep
+// Priorite : tag 2025 > tag 2021 > premier tag trouve
 function extractOwaspCategory(metadata) {
   const owasp = metadata?.owasp;
-  if (Array.isArray(owasp) && owasp.length > 0) {
-    const m = String(owasp[0]).match(/A(0[1-9]|10)/);
-    return m ? `A${m[1]}` : "Other";
+  if (!Array.isArray(owasp) || owasp.length === 0) return "Other";
+
+  // Chercher d'abord un tag :2025
+  for (const tag of owasp) {
+    const m2025 = String(tag).match(/A(0[1-9]|10):2025/);
+    if (m2025) return `A${m2025[1]}`;
   }
+
+  // Sinon un tag :2021
+  for (const tag of owasp) {
+    const m2021 = String(tag).match(/A(0[1-9]|10):2021/);
+    if (m2021) return `A${m2021[1]}`;
+  }
+
+  // Sinon le premier tag OWASP trouve
+  for (const tag of owasp) {
+    const m = String(tag).match(/A(0[1-9]|10)/);
+    if (m) return `A${m[1]}`;
+  }
+
   return "Other";
 }
 
@@ -123,6 +141,22 @@ function getOwaspInfo(category) {
     owaspDescription: info.description ?? null,
     owaspSeverity: info.severity ?? null,
   };
+}
+
+// Mappe un ruleId ESLint vers une catégorie OWASP
+// en cherchant dans les rules[] du owasp-mapping.json
+function mapEslintToOwasp(ruleId) {
+  if (!ruleId) return "Other";
+  for (const [category, info] of Object.entries(owaspMapping)) {
+    if (!Array.isArray(info.rules)) continue;
+    for (const rule of info.rules) {
+      // Les rules dans le JSON sont prefixees "eslint." (ex: "eslint.security/detect-eval-with-expression")
+      if (rule.startsWith("eslint.") && rule.slice(7) === ruleId) {
+        return category;
+      }
+    }
+  }
+  return "Other";
 }
 
 // Extrait un identifiant CWE si présent
@@ -286,14 +320,15 @@ async function runNpmAudit(projectPath, analysisId) {
       const via = Array.isArray(v.via) ? v.via : [];
       const firstViaObj = typeof via[0] === "object" ? via[0] : null;
 
+      const npmOwasp = getOwaspInfo("A03");
       rows.push({
         analysisId,
         title: `npm audit: ${pkg}`,
         description: firstViaObj?.title || null,
         severity: mapNpmSeverity(v.severity),
-        owaspCategory: "Other",
-        owaspName: null,
-        owaspDescription: null,
+        owaspCategory: "A03",
+        owaspName: npmOwasp.owaspName,
+        owaspDescription: npmOwasp.owaspDescription,
         cweId: null,
         filePath: "package-lock.json",
         lineNumber: null,
@@ -356,14 +391,16 @@ async function runEslint(projectPath, analysisId) {
           );
         }
 
+        const eslintOwasp = mapEslintToOwasp(m.ruleId);
+        const eslintOwaspInfo = getOwaspInfo(eslintOwasp);
         rows.push({
           analysisId,
           title: `eslint: ${m.ruleId || "unknown"}`,
           description: m.message || null,
-          severity: mapEslintSeverity(m.severity),
-          owaspCategory: "Other",
-          owaspName: null,
-          owaspDescription: null,
+          severity: eslintOwaspInfo.owaspSeverity || mapEslintSeverity(m.severity),
+          owaspCategory: eslintOwasp,
+          owaspName: eslintOwaspInfo.owaspName,
+          owaspDescription: eslintOwaspInfo.owaspDescription,
           cweId: null,
           filePath: relPath,
           lineNumber: m.line || null,
@@ -385,7 +422,137 @@ async function runEslint(projectPath, analysisId) {
   }
 }
 
-// api scan
+// ============================================================
+// Logique partagee : lance Semgrep + npm audit + ESLint,
+// calcule le score, detecte les langages, sauve en DB.
+// Utilisee par scanRepo (Git) ET scanZip (ZIP).
+// ============================================================
+async function runAnalysis(projectPath, analysis) {
+  // 1) Semgrep
+  console.log("🔍 Semgrep...");
+  let semgrepRows = [];
+  try {
+    const semgrepRaw = await execPromise(
+      "semgrep --config auto --json --disable-version-check",
+      {
+        cwd: projectPath,
+        timeout: 2 * 60 * 1000,
+        env: { PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+      },
+    );
+
+    const semgrepReport = JSON.parse(semgrepRaw);
+
+    semgrepRows = (semgrepReport.results || []).map((r) => {
+      const metadata = r?.extra?.metadata || {};
+      const baseSeverity = mapSemgrepSeverity(r?.extra?.severity);
+
+      const owaspCategory = extractOwaspCategory(metadata);
+      const owaspInfo = getOwaspInfo(owaspCategory);
+
+      let codeSnippet = null;
+      if (r?.path && r?.start?.line) {
+        codeSnippet = extractCodeSnippet(
+          r.path,
+          r.start.line,
+          r.end?.line || r.start.line,
+          projectPath,
+        );
+      }
+
+      const suggestedFix = r?.extra?.fix || null;
+
+      return {
+        analysisId: analysis.id,
+        title: r?.check_id || "Semgrep finding",
+        description: r?.extra?.message || null,
+        severity: owaspInfo.owaspSeverity || baseSeverity,
+        owaspCategory,
+        owaspName: owaspInfo.owaspName,
+        owaspDescription: owaspInfo.owaspDescription,
+        cweId: extractCweId(metadata),
+        filePath: r?.path || null,
+        lineNumber: r?.start?.line ?? null,
+        lineEndNumber: r?.end?.line ?? null,
+        codeSnippet,
+        suggestedFix,
+        toolSource: "semgrep",
+        ruleId: r?.check_id || null,
+        confidence: "medium",
+      };
+    });
+  } catch (e) {
+    console.log("⚠️ Semgrep error (on continue):", String(e).slice(0, 800));
+  }
+
+  console.log("📊 Semgrep findings:", semgrepRows.length);
+
+  // 2) npm audit + eslint (si projet node)
+  const npmRows = await runNpmAudit(projectPath, analysis.id);
+  const eslintRows = await runEslint(projectPath, analysis.id);
+
+  console.log("📊 FINAL COUNT", {
+    semgrep: semgrepRows.length,
+    "npm-audit": npmRows.length,
+    eslint: eslintRows.length,
+  });
+
+  // 3) Tout regrouper
+  const allRows = [...semgrepRows, ...npmRows, ...eslintRows];
+
+  // 4) Compteurs + score
+  const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  for (const v of allRows) counts[v.severity]++;
+
+  const total = allRows.length;
+  const securityScore = computeScore(counts);
+  const scoreGrade = gradeFromScore(securityScore);
+
+  // 5) Detecter les langages
+  const detectedLanguages = detectLanguages(projectPath);
+  const language = detectedLanguages.join(", ") || null;
+
+  // 6) Insertion DB en transaction
+  await sequelize.transaction(async (t) => {
+    if (allRows.length > 0) {
+      await Vulnerability.bulkCreate(allRows, { transaction: t });
+    }
+
+    await analysis.update(
+      {
+        status: "completed",
+        scanCompletedAt: new Date(),
+        totalVulnerabilities: total,
+        criticalCount: counts.critical,
+        highCount: counts.high,
+        mediumCount: counts.medium,
+        lowCount: counts.low,
+        infoCount: counts.info,
+        securityScore,
+        scoreGrade,
+        language,
+      },
+      { transaction: t },
+    );
+  });
+
+  return {
+    analysisId: analysis.id,
+    status: "completed",
+    repositoryUrl: analysis.repositoryUrl,
+    repositoryName: analysis.repositoryName,
+    summary: {
+      totalVulnerabilities: total,
+      counts,
+      securityScore,
+      scoreGrade,
+    },
+  };
+}
+
+// ============================================================
+// SCAN GIT (existant, refactoré)
+// ============================================================
 exports.scanRepo = async (req, res) => {
   const { repoUrl, branch } = req.body;
   const userId = req.user?.id;
@@ -403,13 +570,11 @@ exports.scanRepo = async (req, res) => {
   const scanId = `scan_${Date.now()}`;
   const baseDir = "/tmp/securescan";
   const projectPath = path.join(baseDir, scanId);
-
   let analysis = null;
 
   try {
     ensureDir(baseDir);
 
-    // 1) On crée la ligne "Analysis" en base
     analysis = await Analysis.create({
       userId,
       repositoryUrl: repoUrl,
@@ -420,12 +585,11 @@ exports.scanRepo = async (req, res) => {
       scanStartedAt: new Date(),
     });
 
-    // 2) Clone du repo
+    // Clone
     console.log("📥 Clonage repo...");
     await execPromise(`git clone --depth 1 ${repoUrl} ${projectPath}`);
     console.log("✅ Repo cloné");
 
-    // 3) Switch branch si nécessaire
     if (branch && branch !== "main") {
       await execPromise(`git fetch --depth 1 origin ${branch}`, {
         cwd: projectPath,
@@ -434,144 +598,93 @@ exports.scanRepo = async (req, res) => {
       console.log("🌿 Branch checkout:", branch);
     }
 
-    // 4) Semgrep
-    console.log("🔍 Semgrep...");
-    const semgrepRaw = await execPromise(
-      "semgrep --config auto --json --disable-version-check",
-      {
-        cwd: projectPath,
-        timeout: 2 * 60 * 1000,
-        env: { PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
-      },
-    );
-
-    let semgrepReport;
-    try {
-      semgrepReport = JSON.parse(semgrepRaw);
-    } catch (e) {
-      await analysis.update({
-        status: "failed",
-        scanCompletedAt: new Date(),
-        errorMessage: `Semgrep JSON invalide: ${String(e)}`,
-      });
-      return res.status(500).json({
-        error: "Semgrep output non-JSON",
-        details: String(e),
-      });
-    }
-
-    const semgrepRows = (semgrepReport.results || []).map((r) => {
-      const metadata = r?.extra?.metadata || {};
-      const baseSeverity = mapSemgrepSeverity(r?.extra?.severity);
-
-      const owaspCategory = extractOwaspCategory(metadata);
-      const owaspInfo = getOwaspInfo(owaspCategory);
-
-      let codeSnippet = null;
-      if (r?.path && r?.start?.line) {
-        codeSnippet = extractCodeSnippet(
-          r.path,
-          r.start.line,
-          r.end?.line || r.start.line,
-          projectPath,
-        );
-      }
-
-      // Extraire l'autofix Semgrep s'il existe
-      const suggestedFix = r?.extra?.fix || null;
-
-      return {
-        analysisId: analysis.id,
-        title: r?.check_id || "Semgrep finding",
-        description: r?.extra?.message || null,
-
-        // Si ton mapping OWASP donne une sévérité, on la prend, sinon on garde celle de semgrep
-        severity: owaspInfo.owaspSeverity || baseSeverity,
-
-        owaspCategory,
-        owaspName: owaspInfo.owaspName,
-        owaspDescription: owaspInfo.owaspDescription,
-
-        cweId: extractCweId(metadata),
-
-        filePath: r?.path || null,
-        lineNumber: r?.start?.line ?? null,
-        lineEndNumber: r?.end?.line ?? null,
-        codeSnippet,
-        suggestedFix, // ← Autofix Semgrep
-
-        toolSource: "semgrep",
-        ruleId: r?.check_id || null,
-        confidence: "medium",
-      };
-    });
-
-    console.log("📊 Semgrep findings:", semgrepRows.length);
-
-    // 5) npm audit + eslint (si projet node)
-    const npmRows = await runNpmAudit(projectPath, analysis.id);
-    const eslintRows = await runEslint(projectPath, analysis.id);
-
-    console.log("📊 FINAL COUNT", {
-      semgrep: semgrepRows.length,
-      "npm-audit": npmRows.length,
-      eslint: eslintRows.length,
-    });
-
-    // 6) Tout regrouper
-    const allRows = [...semgrepRows, ...npmRows, ...eslintRows];
-
-    // 7) Compteurs + score
-    const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    for (const v of allRows) counts[v.severity]++;
-
-    const total = allRows.length;
-    const securityScore = computeScore(counts);
-    const scoreGrade = gradeFromScore(securityScore);
-
-    // Détecter les langages du projet (scan du dossier cloné)
-    const detectedLanguages = detectLanguages(projectPath);
-    const language = detectedLanguages.join(", ") || null;
-
-    // 8) Insertion DB en transaction
-    await sequelize.transaction(async (t) => {
-      if (allRows.length > 0) {
-        await Vulnerability.bulkCreate(allRows, { transaction: t });
-      }
-
-      await analysis.update(
-        {
-          status: "completed",
-          scanCompletedAt: new Date(),
-          totalVulnerabilities: total,
-          criticalCount: counts.critical,
-          highCount: counts.high,
-          mediumCount: counts.medium,
-          lowCount: counts.low,
-          infoCount: counts.info,
-          securityScore,
-          scoreGrade,
-          language,
-        },
-        { transaction: t },
-      );
-    });
-
-    return res.json({
-      analysisId: analysis.id,
-      scanId,
-      status: "completed",
-      repositoryUrl: analysis.repositoryUrl,
-      repositoryName: analysis.repositoryName,
-      summary: {
-        totalVulnerabilities: total,
-        counts,
-        securityScore,
-        scoreGrade,
-      },
-    });
+    // Analyse partagee
+    const result = await runAnalysis(projectPath, analysis);
+    result.scanId = scanId;
+    return res.json(result);
   } catch (err) {
     console.log("❌ SCAN FAILED:", String(err).slice(0, 1200));
+
+    if (analysis) {
+      try {
+        await analysis.update({
+          status: "failed",
+          scanCompletedAt: new Date(),
+          errorMessage: String(err),
+        });
+      } catch (_) {}
+    }
+
+    return res.status(500).json({
+      error: "Scan failed",
+      details: String(err),
+    });
+  } finally {
+    cleanupTmp(projectPath);
+  }
+};
+
+// ============================================================
+// SCAN ZIP (nouveau)
+// ============================================================
+exports.scanZip = async (req, res) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Unauthorized", message: "Token manquant ou invalide" });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: "Fichier ZIP manquant" });
+  }
+
+  const scanId = `scan_${Date.now()}`;
+  const baseDir = "/tmp/securescan";
+  const projectPath = path.join(baseDir, scanId);
+  let analysis = null;
+
+  try {
+    ensureDir(baseDir);
+    ensureDir(projectPath);
+
+    // Extraction du ZIP
+    console.log("📦 Extraction ZIP...");
+    const zip = new AdmZip(req.file.buffer);
+    zip.extractAllTo(projectPath, true);
+    console.log("✅ ZIP extrait");
+
+    // Si le ZIP contient un seul dossier racine, on rentre dedans
+    let actualPath = projectPath;
+    const entries = fs.readdirSync(projectPath);
+    if (entries.length === 1) {
+      const singleEntry = path.join(projectPath, entries[0]);
+      if (fs.statSync(singleEntry).isDirectory()) {
+        actualPath = singleEntry;
+      }
+    }
+
+    const originalName = req.file.originalname
+      ? req.file.originalname.replace(/\.zip$/i, "")
+      : "zip-upload";
+
+    analysis = await Analysis.create({
+      userId,
+      repositoryUrl: `zip://${originalName}`,
+      repositoryName: originalName,
+      sourceType: "zip",
+      branch: null,
+      status: "analyzing",
+      scanStartedAt: new Date(),
+    });
+
+    // Analyse partagee (memes outils que Git)
+    const result = await runAnalysis(actualPath, analysis);
+    result.scanId = scanId;
+    return res.json(result);
+  } catch (err) {
+    console.log("❌ SCAN ZIP FAILED:", String(err).slice(0, 1200));
 
     if (analysis) {
       try {

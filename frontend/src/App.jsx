@@ -4,6 +4,7 @@ import Soumission from "./pages/Soumission";
 import Dashboard from "./pages/Dashboard";
 import Findings from "./pages/Findings";
 import Historique from "./pages/Historique";
+import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { useState } from "react";
@@ -104,6 +105,14 @@ function App() {
     setAppliedFixes((prev) => new Set([...prev, findingId]));
   };
 
+  const handleCancelFix = (findingId) => {
+    setAppliedFixes((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(findingId);
+      return newSet;
+    });
+  };
+
   const handleRejectFix = async (fixId) => {
     try {
       const token = localStorage.getItem("token");
@@ -162,11 +171,13 @@ function App() {
                   scanResults={scanResults}
                   appliedFixes={appliedFixes}
                   onApplyFix={handleApplyFix}
+                  onCancelFix={handleCancelFix}
                   onRejectFix={handleRejectFix}
                 />
               }
             />
             <Route path="/historique" element={<Historique />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route
               path="/register"

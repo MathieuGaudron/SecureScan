@@ -2,12 +2,19 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./database/connection");
-const { User, Analysis, Vulnerability, Fix } = require("./models");
+const {
+  User,
+  Analysis,
+  Vulnerability,
+  Fix,
+  GitHubConnection,
+} = require("./models");
 const scanRoutes = require("./routes/scan.routes");
 const userRoutes = require("./routes/user.routes");
 const analysisRoutes = require("./routes/analysis.routes");
 const vulnerabilityRoutes = require("./routes/vulnerability.routes");
 const fixRoutes = require("./routes/fix.routes");
+const githubRoutes = require("./routes/github.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,6 +52,7 @@ app.use("/api/scan", scanRoutes);
 app.use("/api/analysis", analysisRoutes);
 app.use("/api/vulnerabilities", vulnerabilityRoutes);
 app.use("/api/fixes", fixRoutes);
+app.use("/api/github", githubRoutes);
 
 // ========================================
 // ERROR HANDLING

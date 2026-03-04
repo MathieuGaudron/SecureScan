@@ -17,6 +17,7 @@
   "author": "Team SecureScan",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -27,7 +28,7 @@
     "octokit": "^3.1.2",
     "pg": "^8.11.3",
     "sequelize": "^6.35.0",
-    "simple-git": "^3.21.0",
+    "simple-git": "^3.32.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

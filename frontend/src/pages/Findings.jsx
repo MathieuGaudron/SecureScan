@@ -154,6 +154,24 @@ function FindingCard({
 
                 {/* Type et confiance */}
                 <div className="flex gap-2 mb-3">
+                  {/* Badge type de correction */}
+                  {generatedFix.fix?.type && (
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        generatedFix.fix.type === "ai-generated"
+                          ? "bg-purple-500/20 text-purple-400"
+                          : generatedFix.fix.type === "semgrep-autofix"
+                            ? "bg-blue-500/20 text-blue-400"
+                            : "bg-gray-500/20 text-gray-400"
+                      }`}
+                    >
+                      {generatedFix.fix.type === "ai-generated"
+                        ? "🤖 Claude AI"
+                        : generatedFix.fix.type === "semgrep-autofix"
+                          ? "Semgrep Autofix"
+                          : "Template OWASP"}
+                    </span>
+                  )}
                   {generatedFix.confidence && (
                     <span
                       className={`px-2 py-0.5 rounded text-xs font-medium ${

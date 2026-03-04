@@ -1,4 +1,4 @@
-const { Fix, Vulnerability } = require("../models");
+const { Fix, Vulnerability, Analysis } = require("../models");
 const fixService = require("../services/fix.service");
 
 // POST /api/fixes/generate/:vulnerabilityId - Générer un fix pour une vulnérabilité
@@ -6,26 +6,46 @@ const generateFix = async (req, res) => {
   try {
     const { vulnerabilityId } = req.params;
 
-    const vulnerability = await Vulnerability.findByPk(vulnerabilityId);
+    // Récupérer la vulnérabilité avec son Analysis (pour avoir le projectPath)
+    const vulnerability = await Vulnerability.findByPk(vulnerabilityId, {
+      include: [{ model: Analysis, as: "analysis" }],
+    });
+
     if (!vulnerability) {
       return res.status(404).json({ error: "Vulnérabilité non trouvée" });
     }
+
+    // Extraire le projectPath depuis l'Analysis
+    const projectPath = vulnerability.analysis?.projectPath || null;
 
     // Vérifier si un fix existe déjà
     let existingFix = await Fix.findOne({
       where: { vulnerabilityId },
     });
 
-    // ✅ Utiliser fix.service pour générer le fix
-    const generatedFix = fixService.generateFix(
+    // ✅ Utiliser fix.service pour générer le fix (avec projectPath pour Claude)
+    const generatedFix = await fixService.generateFix(
       {
         ruleId: vulnerability.ruleId,
         severity: vulnerability.severity,
         owaspCategory: vulnerability.owaspCategory,
         codeSnippet: vulnerability.codeSnippet,
+        filePath: vulnerability.filePath,
       },
       vulnerability.suggestedFix, // Autofix Semgrep si disponible
+      projectPath, // 🤖 Maintenant disponible pour Claude !
     );
+
+    // Log pour indiquer le type de correction générée
+    if (generatedFix.fixType === "ai-generated") {
+      console.log(
+        `✅ Correction Claude générée pour ${vulnerability.filePath}`,
+      );
+    } else {
+      console.log(
+        `⚠️ Correction ${generatedFix.fixType} (fallback) pour ${vulnerability.filePath}`,
+      );
+    }
 
     let fix;
 

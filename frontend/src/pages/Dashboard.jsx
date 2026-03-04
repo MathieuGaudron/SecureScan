@@ -25,15 +25,15 @@ const owaspColors = [
 
 const owaspNames = {
   A01: "Broken Access Control",
-  A02: "Cryptographic Failures",
-  A03: "Injection",
-  A04: "Insecure Design",
-  A05: "Security Misconfiguration",
-  A06: "Vulnerable Components",
+  A02: "Security Misconfiguration",
+  A03: "Supply Chain Failures",
+  A04: "Cryptographic Failures",
+  A05: "Injection",
+  A06: "Insecure Design",
   A07: "Auth Failures",
   A08: "Data Integrity Failures",
   A09: "Logging Failures",
-  A10: "SSRF",
+  A10: "Exceptional Conditions",
 };
 
 const severityConfig = {

@@ -41,15 +41,6 @@ function Historique() {
     }
   };
 
-  // Extraire les projets uniques pour le filtre
-  const uniqueProjects = [...new Set(scans.map((scan) => scan.repositoryUrl))];
-
-  // Filtrer les scans
-  const filteredScans =
-    filterProject === "all"
-      ? scans
-      : scans.filter((scan) => scan.repositoryUrl === filterProject);
-
   // Extraire le nom du repository depuis l'URL
   const getRepositoryName = (url) => {
     try {
@@ -62,6 +53,39 @@ function Historique() {
       return url;
     }
   };
+
+  // Extraire les projets uniques pour le filtre
+  const uniqueProjects = [...new Set(scans.map((scan) => scan.repositoryUrl))];
+
+  // Grouper les scans par projet (sans doublons)
+  const groupedProjects = uniqueProjects.map((projectUrl) => {
+    const projectScans = scans.filter(
+      (scan) => scan.repositoryUrl === projectUrl,
+    );
+    const latestScan = projectScans[0]; // Le plus récent (déjà trié par date DESC)
+    const totalVulns = projectScans.reduce(
+      (sum, scan) => sum + scan.vulnerabilitiesCount,
+      0,
+    );
+
+    return {
+      projectName: latestScan.projectName,
+      repositoryUrl: projectUrl,
+      scanCount: projectScans.length,
+      latestScanDate: latestScan.createdAt,
+      latestScanId: latestScan.id,
+      totalVulnerabilities: totalVulns,
+      status: latestScan.status,
+    };
+  });
+
+  // Filtrer les projets groupés
+  const filteredProjects =
+    filterProject === "all"
+      ? groupedProjects
+      : groupedProjects.filter(
+          (project) => project.repositoryUrl === filterProject,
+        );
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -161,7 +185,7 @@ function Historique() {
       </div>
 
       {/* Tableau des scans */}
-      {filteredScans.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="bg-[#1a1f2e] border border-gray-700 rounded-lg p-8 text-center">
           <p className="text-gray-400">
             Aucun scan trouvé dans les 30 derniers jours
@@ -174,16 +198,19 @@ function Historique() {
               <thead className="bg-[#0f1419] border-b border-gray-700">
                 <tr>
                   <th className="text-left text-gray-400 text-sm font-medium px-4 py-3">
-                    Date
-                  </th>
-                  <th className="text-left text-gray-400 text-sm font-medium px-4 py-3">
                     Projet
                   </th>
                   <th className="text-left text-gray-400 text-sm font-medium px-4 py-3">
                     Repository
                   </th>
                   <th className="text-center text-gray-400 text-sm font-medium px-4 py-3">
-                    Vulnérabilités
+                    Nombre de scans
+                  </th>
+                  <th className="text-center text-gray-400 text-sm font-medium px-4 py-3">
+                    Dernier scan
+                  </th>
+                  <th className="text-center text-gray-400 text-sm font-medium px-4 py-3">
+                    Total vulnérabilités
                   </th>
                   <th className="text-center text-gray-400 text-sm font-medium px-4 py-3">
                     Statut
@@ -194,41 +221,48 @@ function Historique() {
                 </tr>
               </thead>
               <tbody>
-                {filteredScans.map((scan) => (
+                {filteredProjects.map((project) => (
                   <tr
-                    key={scan.id}
+                    key={project.repositoryUrl}
                     className="border-b border-gray-700 hover:bg-[#1e2438] transition-colors"
                   >
-                    <td className="px-4 py-3 text-sm text-gray-300">
-                      {formatDate(scan.createdAt)}
-                    </td>
                     <td className="px-4 py-3 text-sm text-white font-medium">
-                      {scan.projectName}
+                      {project.projectName}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-400 max-w-xs truncate">
-                      {scan.repositoryUrl}
+                      {project.repositoryUrl}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-cyan-500/20 text-cyan-400">
+                        {project.scanCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300 text-center">
+                      {formatDate(project.latestScanDate)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                          scan.vulnerabilitiesCount > 0
+                          project.totalVulnerabilities > 0
                             ? "bg-orange-500/20 text-orange-400"
                             : "bg-emerald-500/20 text-emerald-400"
                         }`}
                       >
-                        {scan.vulnerabilitiesCount}
+                        {project.totalVulnerabilities}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(scan.status)}`}
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(project.status)}`}
                       >
-                        {getStatusLabel(scan.status)}
+                        {getStatusLabel(project.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() => navigate(`/dashboard/${scan.id}`)}
+                        onClick={() =>
+                          navigate(`/dashboard/${project.latestScanId}`)
+                        }
                         className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                       >
                         Voir détails

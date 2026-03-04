@@ -141,12 +141,17 @@ function Dashboard({ scanResults }) {
 
   const owaspCovered = owaspDistribution.filter((d) => d.count > 0).length;
 
-  // Outils (pour l'instant que Semgrep)
-  const tools = [
-    { name: "Semgrep (SAST)", icon: "search", findings: summary.total },
-    { name: "npm audit", icon: "package", findings: 0 },
-    { name: "ESLint Security", icon: "check", findings: 0 },
-  ];
+// Comptage des vulnérabilités par outil
+const semgrepCount = vulns.filter(v => v.toolSource === "semgrep").length;
+const npmAuditCount = vulns.filter(v => v.toolSource === "npm-audit").length;
+const eslintCount = vulns.filter(v => v.toolSource === "eslint").length;
+
+// Outils exécutés
+const tools = [
+  { name: "Semgrep (SAST)", icon: "search", findings: semgrepCount },
+  { name: "npm audit", icon: "package", findings: npmAuditCount },
+  { name: "ESLint Security", icon: "check", findings: eslintCount },
+];
 
   return (
     <div>

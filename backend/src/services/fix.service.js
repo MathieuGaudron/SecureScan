@@ -1,4 +1,5 @@
 const { getFixTemplate, getGenericFixTemplate } = require("./fix-templates");
+const claudeService = require("./claude.service");
 
 /**
  * Service de génération de corrections pour les vulnérabilités
@@ -8,12 +9,34 @@ const { getFixTemplate, getGenericFixTemplate } = require("./fix-templates");
  * Génère une correction pour une vulnérabilité
  * @param {Object} vulnerability - Objet vulnérabilité avec ruleId, codeSnippet, etc.
  * @param {string} semgrepAutofix - Autofix proposé par Semgrep (si disponible)
- * @returns {Object} Correction générée
+ * @param {string} repoPath - Chemin du repository cloné (pour Claude)
+ * @returns {Promise<Object>} Correction générée
  */
-function generateFix(vulnerability, semgrepAutofix = null) {
+async function generateFix(
+  vulnerability,
+  semgrepAutofix = null,
+  repoPath = null,
+) {
   const { ruleId, severity, owaspCategory, codeSnippet } = vulnerability;
 
-  // 1. Priorité : autofix Semgrep si disponible
+  // 1. Priorité MAXIMALE : Claude AI si disponible et repoPath fourni
+  if (claudeService.isAvailable() && repoPath) {
+    try {
+      console.log(
+        `🤖 Génération correction avec Claude pour ${vulnerability.filePath}`,
+      );
+      const claudeFix = await claudeService.generateFix(
+        vulnerability,
+        repoPath,
+      );
+      return claudeFix;
+    } catch (error) {
+      console.error("❌ Erreur Claude, fallback sur templates:", error.message);
+      // Continue avec les autres méthodes si Claude échoue
+    }
+  }
+
+  // 2. Priorité : autofix Semgrep si disponible
   if (semgrepAutofix && semgrepAutofix.trim() !== "") {
     return {
       fixType: "semgrep-autofix",
@@ -27,7 +50,7 @@ function generateFix(vulnerability, semgrepAutofix = null) {
     };
   }
 
-  // 2. Template spécifique basé sur le ruleId
+  // 3. Template spécifique basé sur le ruleId
   const template = getFixTemplate(ruleId);
   if (template) {
     return {
@@ -41,7 +64,7 @@ function generateFix(vulnerability, semgrepAutofix = null) {
     };
   }
 
-  // 3. Template générique basé sur OWASP catégorie
+  // 4. Template générique basé sur OWASP catégorie
   const genericTemplate = getGenericFixTemplate(severity, owaspCategory);
   return {
     fixType: "generic",
@@ -60,16 +83,19 @@ function generateFix(vulnerability, semgrepAutofix = null) {
 /**
  * Génère des corrections pour plusieurs vulnérabilités
  * @param {Array} vulnerabilities - Liste de vulnérabilités
- * @returns {Array} Liste de corrections
+ * @param {string} repoPath - Chemin du repository (pour Claude)
+ * @returns {Promise<Array>} Liste de corrections
  */
-function generateBulkFixes(vulnerabilities) {
-  return vulnerabilities.map((vuln) => {
-    const fix = generateFix(vuln, vuln.semgrepAutofix);
-    return {
+async function generateBulkFixes(vulnerabilities, repoPath = null) {
+  const fixes = [];
+  for (const vuln of vulnerabilities) {
+    const fix = await generateFix(vuln, vuln.semgrepAutofix, repoPath);
+    fixes.push({
       vulnerabilityId: vuln.id,
       ...fix,
-    };
-  });
+    });
+  }
+  return fixes;
 }
 
 /**
@@ -104,8 +130,9 @@ function formatFixForDisplay(vulnerability, fix) {
       confidence: fix.confidence,
       canAutoApply: canAutoApply(fix),
       diff: {
-        before: fix.originalCode,
-        after: fix.fixedCode,
+        // Utiliser le diff pré-généré par Claude si disponible, sinon fallback
+        before: fix.diff?.before || fix.originalCode,
+        after: fix.diff?.after || fix.fixedCode,
       },
       explanation: fix.explanation,
       resources: fix.resources,

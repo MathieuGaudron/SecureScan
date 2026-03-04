@@ -397,7 +397,8 @@ async function runEslint(projectPath, analysisId) {
           analysisId,
           title: `eslint: ${m.ruleId || "unknown"}`,
           description: m.message || null,
-          severity: eslintOwaspInfo.owaspSeverity || mapEslintSeverity(m.severity),
+          severity:
+            eslintOwaspInfo.owaspSeverity || mapEslintSeverity(m.severity),
           owaspCategory: eslintOwasp,
           owaspName: eslintOwaspInfo.owaspName,
           owaspDescription: eslintOwaspInfo.owaspDescription,
@@ -531,6 +532,7 @@ async function runAnalysis(projectPath, analysis) {
         securityScore,
         scoreGrade,
         language,
+        projectPath,
       },
       { transaction: t },
     );
@@ -620,7 +622,8 @@ exports.scanRepo = async (req, res) => {
       details: String(err),
     });
   } finally {
-    cleanupTmp(projectPath);
+    // NE PAS nettoyer ici - les fichiers sont nécessaires pour la génération de corrections avec Claude
+    // cleanupTmp(projectPath);
   }
 };
 
@@ -701,6 +704,7 @@ exports.scanZip = async (req, res) => {
       details: String(err),
     });
   } finally {
-    cleanupTmp(projectPath);
+    // NE PAS nettoyer ici - les fichiers sont nécessaires pour la génération de corrections avec Claude
+    // cleanupTmp(projectPath);
   }
 };

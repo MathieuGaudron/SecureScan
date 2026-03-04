@@ -44,8 +44,14 @@ const Analysis = sequelize.define(
       type: DataTypes.STRING,
       defaultValue: "main",
     },
-    
+
     language: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+
+    // Chemin local du projet scanné (pour générations de corrections avec Claude)
+    projectPath: {
       type: DataTypes.STRING,
       allowNull: true,
     },

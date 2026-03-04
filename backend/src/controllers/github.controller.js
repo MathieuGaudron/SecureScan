@@ -1,5 +1,7 @@
-const { GitHubConnection } = require("../models");
+const { GitHubConnection, Vulnerability, Analysis } = require("../models");
 const gitService = require("../services/git.service");
+const fixService = require("../services/fix.service");
+const claudeService = require("../services/claude.service");
 
 /**
  * Sauvegarde un token GitHub pour l'utilisateur
@@ -148,14 +150,97 @@ exports.pushFixes = async (req, res) => {
       // 1. Cloner le repository
       repoPath = await gitService.cloneRepository(repositoryUrl, token);
 
-      // 2. Appliquer les corrections
-      await gitService.applyFixes(repoPath, fixes);
+      // 2. RÉGÉNÉRER les corrections avec Claude (si disponible)
+      let enhancedFixes = fixes;
+      let claudeSuccessCount = 0;
 
-      // 3. Créer une branche avec timestamp
+      if (claudeService.isAvailable()) {
+        console.log(`🤖 Régénération des corrections avec Claude...`);
+        enhancedFixes = [];
+
+        for (const fix of fixes) {
+          let usedClaude = false;
+
+          try {
+            // Récupérer la vulnérabilité complète depuis la BDD
+            const vulnerabilities = await Vulnerability.findAll({
+              where: { filePath: fix.filePath },
+              include: [
+                {
+                  model: Analysis,
+                  as: "analysis",
+                  where: { id: analysisId },
+                },
+              ],
+            });
+
+            if (vulnerabilities.length > 0) {
+              const vuln = vulnerabilities[0];
+              // Régénérer avec Claude
+              const claudeFix = await fixService.generateFix(
+                {
+                  ruleId: vuln.ruleId,
+                  severity: vuln.severity,
+                  owaspCategory: vuln.owaspCategory,
+                  owaspName: vuln.owaspName,
+                  description: vuln.description,
+                  codeSnippet: vuln.codeSnippet,
+                  filePath: vuln.filePath,
+                  lineNumber: vuln.lineNumber,
+                  toolSource: vuln.toolSource,
+                },
+                vuln.suggestedFix,
+                repoPath, // <- Le repo est cloné, Claude peut lire le fichier complet
+              );
+
+              // Vérifier si c'est vraiment une correction Claude ou un fallback
+              if (claudeFix.fixType === "ai-generated") {
+                claudeSuccessCount++;
+                usedClaude = true;
+              }
+
+              enhancedFixes.push({
+                filePath: fix.filePath,
+                fixedCode: claudeFix.fixedCode || claudeFix.code,
+                description: fix.description,
+              });
+            } else {
+              // Si pas trouvée, garder le fix original
+              enhancedFixes.push(fix);
+            }
+          } catch (error) {
+            console.error(
+              `❌ Erreur Claude pour ${fix.filePath}:`,
+              error.message,
+            );
+            // Fallback sur le fix original
+            enhancedFixes.push(fix);
+          }
+
+          if (!usedClaude) {
+            console.log(`⚠️ Fallback template pour ${fix.filePath}`);
+          }
+        }
+
+        if (claudeSuccessCount > 0) {
+          console.log(
+            `✅ ${claudeSuccessCount} correction(s) générée(s) avec Claude, ${enhancedFixes.length - claudeSuccessCount} avec templates`,
+          );
+        } else {
+          console.log(
+            `⚠️ Aucune correction Claude (crédit insuffisant), ${enhancedFixes.length} template(s) utilisé(s)`,
+          );
+        }
+      }
+
+      // 3. Appliquer les corrections (maintenant intelligentes !)
+      await gitService.applyFixes(repoPath, enhancedFixes);
+
+      // 4. Créer une branche avec timestamp
       const branchName = `securescan-fixes-${Date.now()}`;
-      const commitMessage = `🔒 SecureScan: Correction de ${fixes.length} vulnérabilité(s)`;
+      const commitMessage = `🔒 SecureScan: Correction de ${enhancedFixes.length} vulnérabilité(s)`;
 
-      // 4. Commit et push
+      // 5. Commit et push
       await gitService.commitAndPush(
         repoPath,
         branchName,
@@ -164,10 +249,10 @@ exports.pushFixes = async (req, res) => {
         repositoryUrl,
       );
 
-      // 5. Créer la Pull Request
+      // 6. Créer la Pull Request
       const { owner, repo } = gitService.parseRepoUrl(repositoryUrl);
       const prTitle = `🔒 SecureScan: Corrections de sécurité`;
-      const prBody = `## Corrections automatiques de SecureScan\n\nCette Pull Request contient **${fixes.length} correction(s)** de vulnérabilités détectées par SecureScan.\n\n### Corrections appliquées:\n${fixes.map((f, i) => `${i + 1}. \`${f.filePath}\` - ${f.description || "Correction de vulnérabilité"}`).join("\n")}\n\n---\n*Généré automatiquement par [SecureScan](https://github.com/securescan)*`;
+      const prBody = `## Corrections automatiques de SecureScan\n\nCette Pull Request contient **${enhancedFixes.length} correction(s)** de vulnérabilités détectées par SecureScan.\n\n### Corrections appliquées:\n${enhancedFixes.map((f, i) => `${i + 1}. \`${f.filePath}\` - ${f.description || "Correction de vulnérabilité"}`).join("\n")}\n\n---\n*Généré automatiquement par [SecureScan](https://github.com/securescan)*`;
 
       const pullRequest = await gitService.createPullRequest(
         owner,
@@ -193,7 +278,7 @@ exports.pushFixes = async (req, res) => {
           title: pullRequest.title,
         },
         branch: branchName,
-        fixesCount: fixes.length,
+        fixesCount: enhancedFixes.length,
       });
     } catch (gitError) {
       // Nettoyer en cas d'erreur

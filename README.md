@@ -11,9 +11,9 @@ SecureScan est une plateforme web qui permet d'analyser automatiquement la sécu
 ### Analyse de sécurité
 
 - Soumission de repository Git (GitHub, GitLab, Bitbucket) ou upload de fichier ZIP
-- Scan automatisé avec Semgrep (règles OWASP intégrées)
+- Scan automatisé multi-outils : Semgrep, npm audit, ESLint Security
 - Support multi-langages (JavaScript, Python, Java, Go, etc.)
-- Détection de 18+ catégories de vulnérabilités OWASP
+- Classification automatique selon OWASP Top 10:2025
 - Calcul de score de sécurité (0-100) et grade (A à F)
 
 ### Corrections intelligentes
@@ -37,7 +37,7 @@ SecureScan est une plateforme web qui permet d'analyser automatiquement la sécu
 - Historique des scans avec filtres et tri
 - Détails des vulnérabilités avec mapping CWE
 - Gestion de profil utilisateur
-- Export de rapports (JSON, Markdown)
+- Export de rapports PDF avec analyse Claude
 
 ## Architecture
 
@@ -71,28 +71,27 @@ SecureScan/
 
 ### Backend
 
-- **Node.js** v18+ / **Express.js** v4.18+
+- **Node.js** v18+ / **Express.js** v4
 - **PostgreSQL** v14+ / **Sequelize** ORM
-- **Semgrep** v1.45+ (analyse SAST)
-- **Claude AI** (SDK Anthropic)
+- **Semgrep** (analyse SAST multi-langage)
+- **npm audit** (scan des dépendances)
+- **ESLint** + eslint-plugin-security (analyse statique JS)
+- **Claude Sonnet 4** (SDK Anthropic) - génération de corrections et rapports
 - **simple-git** (orchestration Git)
 - **@octokit/rest** (API GitHub)
-- **JWT** (authentification)
+- **pdfkit** (génération de rapports PDF)
+- **JWT** + **bcrypt** (authentification)
 
 ### Frontend
 
-- **React** v18.2+ / **Vite** v5.0+
-- **React Router** v6.20+ (routing)
-- **TailwindCSS** v3.3+ (styling)
-- **Axios** (API client)
-- **Recharts** (visualisations)
-- **React Syntax Highlighter** (coloration code)
+- **React** 19 / **Vite** 7
+- **React Router DOM** v7 (routing)
+- **Tailwind CSS** 4 (styling)
+- **Recharts** (visualisations graphiques)
 
 ### Infrastructure
 
-- **Supabase** (base de données hébergée)
-- **Vercel** / **Netlify** (déploiement frontend)
-- **Railway** / **Render** (déploiement backend)
+- **Supabase** (base de données PostgreSQL hébergée)
 
 ## Installation rapide
 
@@ -185,8 +184,8 @@ Base URL: `http://localhost:3000/api`
 
 #### Rapports
 
-- `GET /report/:analysisId/json` - Export JSON (JWT requis)
-- `GET /report/:analysisId/markdown` - Export Markdown (JWT requis)
+- `GET /reports/view/:analysisId` - Données du rapport en JSON (JWT requis)
+- `GET /reports/generate/:analysisId` - Télécharger le rapport PDF (JWT requis)
 
 ### Diagrammes UML
 
@@ -309,56 +308,6 @@ Les faux positifs sont documentés avec des annotations `// nosemgrep:` explicit
 const resolvedPath = path.resolve(baseDir, userInput); // Validé avec startsWith()
 ```
 
-## Tests
-
-### Backend
-
-```bash
-cd backend
-npm test                      # Tests unitaires
-npm run test:integration      # Tests d'intégration
-npm run test:coverage         # Coverage
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm test                      # Tests unitaires (Vitest)
-npm run test:e2e              # Tests E2E (Playwright)
-```
-
-## Déploiement
-
-### Backend (Railway / Render)
-
-```bash
-# Build
-npm run build
-
-# Start
-npm start
-```
-
-Variables d'environnement à configurer:
-
-- `NODE_ENV=production`
-- `DB_HOST`, `DB_USER`, `DB_PASSWORD` (production)
-- `JWT_SECRET`, `ENCRYPTION_KEY`
-
-### Frontend (Vercel / Netlify)
-
-```bash
-# Build
-npm run build
-
-# Dossier de déploiement: dist/
-```
-
-Variables d'environnement:
-
-- `VITE_API_URL=https://api.votre-domaine.com/api`
-
 ## Contribution
 
 ### Workflow Git
@@ -375,50 +324,12 @@ Variables d'environnement:
 - **Code**: ESLint + Prettier
 - **Branches**: `feature/*`, `fix/*`, `refactor/*`
 
-## Roadmap
-
-### Version 1.1
-
-- Support TypeScript (frontend + backend)
-- Tests unitaires et E2E complets
-- Authentification OAuth (GitHub, Google)
-- Webhooks GitHub pour scans automatiques
-
-### Version 1.2
-
-- Support de plus de langages (Ruby, PHP, C#)
-- Intégration GitLab et Bitbucket
-- Comparaison de scans (progression)
-- Rapports PDF avancés
-
-### Version 2.0
-
-- Plugins pour IDE (VS Code, IntelliJ)
-- CI/CD Integration (GitHub Actions, GitLab CI)
-- API publique avec clés API
-- Dashboard multi-projets
-
 ## License
 
 Ce projet est sous licence MIT.
 
-## Auteurs
+## Équipe
 
-- **Mathieu Gaudron** - Développeur principal - [GitHub](https://github.com/MathieuGaudron)
+Hackathon IPSSI - Groupe 14 - Mars 2026
 
-## Remerciements
-
-- **Semgrep** (r2c) - Moteur d'analyse SAST
-- **Anthropic** - Claude AI pour corrections intelligentes
-- **OWASP** - Référentiel de sécurité
-
-## Support
-
-Pour toute question ou problème:
-
-- Ouvrir une issue sur [GitHub Issues](https://github.com/MathieuGaudron/SecureScan/issues)
-- Consulter la documentation UML dans `/docs`
-
----
-
-**Développé avec passion pour améliorer la sécurité du code open source.**
+Allan, Nassim, Mathieu, Hady

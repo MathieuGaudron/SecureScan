@@ -7,6 +7,7 @@ import Historique from "./pages/Historique";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ReportView from "./pages/ReportView";
 import { useState } from "react";
 
 function App() {
@@ -194,6 +195,7 @@ function App() {
             />
             <Route path="/historique" element={<Historique />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/report/:analysisId" element={<ReportView />} />
             <Route path="/login" element={<Login onLogin={handleLogin} />} />
             <Route
               path="/register"

@@ -15,6 +15,7 @@ const analysisRoutes = require("./routes/analysis.routes");
 const vulnerabilityRoutes = require("./routes/vulnerability.routes");
 const fixRoutes = require("./routes/fix.routes");
 const githubRoutes = require("./routes/github.routes");
+const reportRoutes = require("./routes/report.routes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +54,7 @@ app.use("/api/analysis", analysisRoutes);
 app.use("/api/vulnerabilities", vulnerabilityRoutes);
 app.use("/api/fixes", fixRoutes);
 app.use("/api/github", githubRoutes);
+app.use("/api/reports", reportRoutes);
 
 // ========================================
 // ERROR HANDLING

@@ -17,8 +17,8 @@
   "author": "Team SecureScan",
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.13.6",
     "adm-zip": "^0.5.16",
+    "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -27,6 +27,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
     "octokit": "^3.1.2",
+    "pdfkit": "^0.17.2",
     "pg": "^8.11.3",
     "sequelize": "^6.35.0",
     "simple-git": "^3.32.3",

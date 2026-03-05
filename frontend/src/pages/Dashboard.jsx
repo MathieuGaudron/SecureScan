@@ -131,6 +131,15 @@ function Dashboard({ scanResults }) {
     }
   }, [id, scanResults]);
 
+  // Naviguer vers la page du rapport
+  const handleViewReport = () => {
+    if (!loadedScanResults?.id) {
+      alert("Aucune analyse disponible pour afficher le rapport");
+      return;
+    }
+    navigate(`/report/${loadedScanResults.id}`);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -235,8 +244,11 @@ function Dashboard({ scanResults }) {
           >
             Voir les vulnérabilités →
           </button>
-          <button className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
-            Generer rapport
+          <button
+            onClick={handleViewReport}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+          >
+             Voir le rapport
           </button>
         </div>
       </div>

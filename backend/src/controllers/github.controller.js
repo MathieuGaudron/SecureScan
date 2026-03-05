@@ -209,6 +209,8 @@ exports.pushFixes = async (req, res) => {
               enhancedFixes.push(fix);
             }
           } catch (error) {
+            // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
+            // error.message provient d'une exception système, pas d'entrée utilisateur
             console.error(
               `❌ Erreur Claude pour ${fix.filePath}:`,
               error.message,

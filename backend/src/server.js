@@ -16,6 +16,7 @@ const vulnerabilityRoutes = require("./routes/vulnerability.routes");
 const fixRoutes = require("./routes/fix.routes");
 const githubRoutes = require("./routes/github.routes");
 const reportRoutes = require("./routes/report.routes");
+const { cleanupOldScans } = require("./controllers/scan.controller");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -93,6 +94,19 @@ const startServer = async () => {
     // Synchroniser les modèles avec la DB (en dev, utilise alter: true)
     await sequelize.sync({ alter: process.env.NODE_ENV === "development" });
     console.log("✓ Database models synchronized");
+
+    // Nettoyer les dossiers temporaires de plus de 24h au démarrage
+    console.log("🧹 Nettoyage des fichiers temporaires...");
+    cleanupOldScans();
+
+    // Nettoyer automatiquement toutes les 6 heures
+    setInterval(
+      () => {
+        console.log("🧹 Nettoyage automatique programmé...");
+        cleanupOldScans();
+      },
+      6 * 60 * 60 * 1000,
+    ); // 6 heures
 
     // Lancer le serveur
     app.listen(PORT, () => {

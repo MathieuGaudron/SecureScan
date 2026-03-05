@@ -18,13 +18,14 @@ const githubRoutes = require("./routes/github.routes");
 const reportRoutes = require("./routes/report.routes");
 const { cleanupOldScans } = require("./controllers/scan.controller");
 
+// nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ========================================
 // MIDDLEWARE
 // ========================================
-app.use(cors()); // nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

@@ -30,8 +30,8 @@ class GitService {
       if (!repoName || /[\.\/\\]/.test(repoName)) {
         throw new Error("Invalid repository name");
       }
-
-      const localPath = path.join(this.tempDir, `${repoName}-${Date.now()}`);
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+      // Protégé : repoName validé ci-dessus (reject si contient . / \)      const localPath = path.join(this.tempDir, `${repoName}-${Date.now()}`);
 
       // Construire l'URL avec token si fourni
       let cloneUrl = repoUrl;
@@ -59,6 +59,8 @@ class GitService {
     try {
       for (const fix of fixes) {
         // Valider le path pour éviter path traversal
+        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+        // Protection explicite contre path traversal avec vérification startsWith
         const resolvedBase = path.resolve(repoPath);
         const resolvedTarget = path.resolve(repoPath, fix.filePath);
 
@@ -229,6 +231,12 @@ class GitService {
    * @param {string} repoUrl - URL du repository
    * @param {string} token - Token GitHub
    * @returns {string} - URL avec token
+   *
+   * ⚠️ ATTENTION : Le token est inclus dans l'URL. Si simple-git log une erreur,
+   * le token pourrait apparaître dans les logs. Pour la production, considérer :
+   * - Utiliser des SSH keys au lieu de HTTPS
+   * - Utiliser git credential helper
+   * - Wrapper les erreurs pour filtrer les tokens
    */
   buildAuthUrl(repoUrl, token) {
     // Format: https://x-access-token:TOKEN@github.com/owner/repo.git

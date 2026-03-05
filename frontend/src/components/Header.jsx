@@ -5,9 +5,7 @@ function Header({ user, onLogout }) {
     <header className="border-b border-gray-800 bg-[#0f1419]">
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-            S
-          </div>
+          <img src="/logo.png" alt="SecureScan" className="w-8 h-8" />
           <span className="text-white font-semibold text-lg">
             Secure<span className="text-emerald-400">Scan</span>
           </span>

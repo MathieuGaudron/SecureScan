@@ -1,0 +1,149 @@
+@startuml SecureScan - Diagramme d'Activité (Scan Complet)
+
+' Configuration du style
+skinparam backgroundColor white
+skinparam activityBackgroundColor #90EE90
+skinparam activityBorderColor #000000
+skinparam activityStartColor #87CEEB
+skinparam activityEndColor #FF6B6B
+skinparam activityDiamondBackgroundColor #FFD700
+skinparam activityDiamondBorderColor #000000
+skinparam arrowColor #000000
+skinparam partitionBorderColor #000000
+skinparam partitionBackgroundColor #FFFACD
+
+title **SecureScan - Flux d'Analyse de Sécurité Complet**
+
+start
+
+:Utilisateur se connecte;
+note right: Authentification JWT
+
+:Utilisateur soumet\nle repository Git;
+note right
+  - URL GitHub
+  - Branche (main/dev)
+  - Type de source
+end note
+
+partition "Clonage du Repository" {
+  :Valider l'URL Git;
+  
+  if (URL valide ?) then (oui)
+    :Cloner le repository\navec simple-git;
+    :Détecter le langage\n(Node.js, Python, etc.);
+  else (non)
+    :Retourner erreur\n400 Bad Request;
+    stop
+  endif
+}
+
+partition "Scan de Sécurité Semgrep" {
+  :Préparer la configuration\nSemgrep (OWASP rules);
+  
+  :Exécuter Semgrep\nsur le code source;
+  note right: semgrep --config=auto --json
+  
+  if (Scan réussi ?) then (oui)
+    :Parser les résultats\nJSON de Semgrep;
+    :Enrichir avec\nmapping OWASP;
+  else (non)
+    :Logger l'erreur;
+    :Marquer analyse\ncomme "failed";
+    stop
+  endif
+}
+
+partition "Analyse des Résultats" {
+  :Compter les vulnérabilités\npar sévérité;
+  note right
+    - Critical
+    - High
+    - Medium
+    - Low
+    - Info
+  end note
+  
+  :Calculer le score\nde sécurité (0-100);
+  
+  :Attribuer le grade\n(A, B, C, D, F);
+  
+  :Créer l'objet Analysis\nen base de données;
+  
+  :Créer les Vulnerability\nassociées;
+}
+
+partition "Génération de Corrections" {
+  if (Corrections automatiques\ndisponibles ?) then (oui)
+    :Extraire autofix\nde Semgrep;
+    :Créer des Fix\n(type: semgrep-autofix);
+  else (non)
+    :Passer au template\ngénérique;
+  endif
+  
+  if (Claude API activée ?) then (oui)
+    fork
+      :Envoyer vulnérabilité\nà Claude AI;
+      :Générer correction\nintelligente;
+      :Créer Fix\n(type: ai-generated);
+    fork again
+      :Utiliser templates\nOWASP par défaut;
+      :Créer Fix\n(type: template);
+    end fork
+  else (non)
+    :Utiliser templates\nOWASP uniquement;
+  endif
+}
+
+partition "Nettoyage" {
+  :Supprimer le repository\ncloné temporaire;
+  :Nettoyer les anciens scans\n(> 7 jours);
+}
+
+:Marquer l'analyse\ncomme "completed";
+
+:Retourner les résultats\nau frontend;
+note right
+  - Score de sécurité
+  - Liste des vulnérabilités
+  - Corrections proposées
+  - Rapport détaillé
+end note
+
+if (Utilisateur veut\npousser sur GitHub ?) then (oui)
+  partition "Push GitHub" {
+    :Vérifier connexion\nGitHub active;
+    
+    if (Token GitHub valide ?) then (oui)
+      :Créer nouvelle branche\n(fix/security-YYMMDD);
+      
+      :Appliquer les corrections\nsélectionnées;
+      
+      :Commit & Push\nvers GitHub;
+      
+      :Créer Pull Request\navec description OWASP;
+      
+      :Retourner URL\nde la PR;
+    else (non)
+      :Demander connexion\nGitHub;
+      stop
+    endif
+  }
+else (non)
+  :Utilisateur consulte\nles résultats;
+endif
+
+:Sauvegarder dans\nl'historique;
+
+stop
+
+legend right
+  **Couleurs**
+  ====
+  Vert = Processus principal
+  Jaune = Décision
+  Bleu = Début
+  Rouge = Fin
+endlegend
+
+@enduml

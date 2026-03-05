@@ -1,0 +1,193 @@
+@startuml SecureScan - Diagramme de Classes
+
+' ====================================
+' CONFIGURATION DU STYLE (fond blanc, contraste élevé)
+' ====================================
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+
+skinparam class {
+  BackgroundColor<<User>> #87CEEB
+  BorderColor<<User>> #000000
+  FontColor<<User>> #000000
+  
+  BackgroundColor<<Analysis>> #90EE90
+  BorderColor<<Analysis>> #000000
+  FontColor<<Analysis>> #000000
+  
+  BackgroundColor<<Vulnerability>> #FFB6C1
+  BorderColor<<Vulnerability>> #000000
+  FontColor<<Vulnerability>> #000000
+  
+  BackgroundColor<<Fix>> #FFD700
+  BorderColor<<Fix>> #000000
+  FontColor<<Fix>> #000000
+  
+  BackgroundColor<<GitHub>> #DDA0DD
+  BorderColor<<GitHub>> #000000
+  FontColor<<GitHub>> #000000
+  
+  ArrowColor #000000
+  BorderThickness 2
+}
+
+' ====================================
+' CLASSE USER
+' ====================================
+class User <<User>> {
+  **- id: UUID** ⚿ PK
+  --
+  - email: String (unique)
+  - password: String (encrypted)
+  - username: String (unique)
+  - firstName: String
+  - lastName: String
+  - role: Enum("user")
+  - emailVerified: Boolean
+  - lastLoginAt: Date
+  - createdAt: Date
+  - updatedAt: Date
+  ==
+  + validatePassword(pwd: String): Boolean
+  + generateAuthToken(): String
+}
+
+' ====================================
+' CLASSE ANALYSIS
+' ====================================
+class Analysis <<Analysis>> {
+  **- id: UUID** ⚿ PK
+  **- userId: UUID** ⚿ FK
+  --
+  - repositoryUrl: String
+  - repositoryName: String
+  - sourceType: Enum
+  - branch: String
+  - language: String
+  - projectPath: String
+  - status: Enum
+  - securityScore: Integer (0-100)
+  - scoreGrade: Enum (A-F)
+  - totalVulnerabilities: Integer
+  - criticalCount: Integer
+  - highCount: Integer
+  - mediumCount: Integer
+  - createdAt: Date
+  - updatedAt: Date
+  ==
+  + calculateSecurityScore(): Integer
+  + assignGrade(): String
+  + updateVulnerabilityCounts(): void
+}
+
+' ====================================
+' CLASSE VULNERABILITY
+' ====================================
+class Vulnerability <<Vulnerability>> {
+  **- id: UUID** ⚿ PK
+  **- analysisId: UUID** ⚿ FK
+  --
+  - title: String
+  - description: Text
+  - severity: Enum
+  - owaspCategory: Enum (A01-A10)
+  - owaspName: String
+  - owaspDescription: Text
+  - cweId: String
+  - filePath: String
+  - lineNumber: Integer
+  - lineEndNumber: Integer
+  - codeSnippet: Text
+  - createdAt: Date
+  - updatedAt: Date
+  ==
+  + getSeverityWeight(): Integer
+  + enrichWithOWASP(): void
+}
+
+' ====================================
+' CLASSE FIX
+' ====================================
+class Fix <<Fix>> {
+  **- id: UUID** ⚿ PK
+  **- vulnerabilityId: UUID** ⚿ FK
+  --
+  - fixType: Enum
+  - description: Text
+  - originalCode: Text
+  - fixedCode: Text
+  - status: Enum
+  - gitBranch: String
+  - gitCommitHash: String
+  - appliedAt: Date
+  - createdAt: Date
+  - updatedAt: Date
+  ==
+  + apply(): Boolean
+  + generateDiff(): String
+}
+
+' ====================================
+' CLASSE GITHUB CONNECTION
+' ====================================
+class GitHubConnection <<GitHub>> {
+  **- id: UUID** ⚿ PK
+  **- userId: UUID** ⚿ FK (unique)
+  --
+  - accessToken: Text (encrypted)
+  - githubUsername: String
+  - githubEmail: String
+  - isActive: Boolean
+  - lastUsed: Date
+  - createdAt: Date
+  - updatedAt: Date
+  ==
+  + encryptToken(token: String): String
+  + decryptToken(): String
+  + testConnection(): Boolean
+}
+
+' ====================================
+' RELATIONS
+' ====================================
+
+User "1" -down-> "0..*" Analysis : possède ▶
+note on link #FFFFE0
+  CASCADE DELETE
+end note
+
+User "1" -right-> "0..1" GitHubConnection : connecté à ▶
+note on link #FFFFE0
+  CASCADE DELETE
+  (relation unique)
+end note
+
+Analysis "1" -down-> "0..*" Vulnerability : contient ▶
+note on link #FFFFE0
+  CASCADE DELETE
+end note
+
+Vulnerability "1" -right-> "0..*" Fix : corrigée par ▶
+note on link #FFFFE0
+  CASCADE DELETE
+end note
+
+' ====================================
+' LÉGENDE
+' ====================================
+legend top left
+  **SecureScan - Modèle de données**
+  ====
+  ⚿ PK = Clé primaire
+  ⚿ FK = Clé étrangère
+  ====
+  Toutes les relations utilisent
+  CASCADE DELETE pour l'intégrité
+  référentielle.
+endlegend
+
+@enduml

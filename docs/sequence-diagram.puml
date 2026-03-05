@@ -1,0 +1,233 @@
+@startuml SecureScan - Diagramme de Séquence (Scan avec Push GitHub)
+
+' Configuration du style
+skinparam backgroundColor white
+skinparam sequenceParticipant {
+  BackgroundColor #87CEEB
+  BorderColor #000000
+}
+skinparam sequenceActor {
+  BackgroundColor #90EE90
+  BorderColor #000000
+}
+skinparam sequenceBoxBackgroundColor #FFFACD
+skinparam sequenceBoxBorderColor #000000
+skinparam arrowColor #000000
+skinparam sequenceLifeLineBorderColor #000000
+
+title **SecureScan - Séquence Complète : Scan → Correction IA → Push GitHub**
+
+actor "Utilisateur" as User
+participant "Frontend\n(React)" as Frontend
+participant "Backend API\n(Express)" as Backend
+participant "Auth\nMiddleware" as Auth
+participant "Scan\nController" as ScanCtrl
+participant "Git Service\n(simple-git)" as GitSvc
+database "PostgreSQL" as DB
+participant "Semgrep\n(CLI)" as Semgrep
+participant "Claude AI\n(Anthropic)" as Claude
+participant "GitHub API" as GitHub
+
+== Authentification ==
+
+User -> Frontend : Connexion (email, password)
+activate Frontend
+
+Frontend -> Backend : POST /api/users/login
+activate Backend
+
+Backend -> DB : Vérifier credentials
+activate DB
+DB --> Backend : User + JWT token
+deactivate DB
+
+Backend --> Frontend : { token, user }
+deactivate Backend
+
+Frontend --> User : Redirection Dashboard
+deactivate Frontend
+
+== Soumission du Scan ==
+
+User -> Frontend : Soumettre repository\n(URL, branch)
+activate Frontend
+
+Frontend -> Backend : POST /api/scan\n{ repositoryUrl, branch }
+activate Backend
+
+Backend -> Auth : Vérifier JWT token
+activate Auth
+Auth --> Backend : User authentifié
+deactivate Auth
+
+Backend -> ScanCtrl : scanRepo(req, res)
+activate ScanCtrl
+
+ScanCtrl -> DB : Créer Analysis\n(status: "pending")
+activate DB
+DB --> ScanCtrl : Analysis créée
+deactivate DB
+
+== Clonage du Repository ==
+
+ScanCtrl -> GitSvc : cloneRepository(url, branch)
+activate GitSvc
+
+GitSvc -> GitSvc : Validation URL\n+ path traversal check
+
+GitSvc -> "Git CLI" : git clone --depth 1\n--branch main
+activate "Git CLI"
+"Git CLI" --> GitSvc : Repository cloné
+deactivate "Git CLI"
+
+GitSvc --> ScanCtrl : Chemin local repository
+deactivate GitSvc
+
+== Scan Semgrep ==
+
+ScanCtrl -> ScanCtrl : Détecter langage\n(package.json, requirements.txt)
+
+ScanCtrl -> Semgrep : Exécuter scan\nsemgrep --config=auto --json
+activate Semgrep
+
+Semgrep -> Semgrep : Analyser code source\navec règles OWASP
+
+Semgrep --> ScanCtrl : Résultats JSON\n(18 vulnérabilités)
+deactivate Semgrep
+
+== Traitement des Résultats ==
+
+ScanCtrl -> ScanCtrl : Parser JSON\n+ Enrichir OWASP mapping
+
+loop Pour chaque vulnérabilité
+  ScanCtrl -> DB : Créer Vulnerability
+  activate DB
+  DB --> ScanCtrl : Vulnerability créée
+  deactivate DB
+end
+
+ScanCtrl -> ScanCtrl : Calculer score sécurité\n(0-100) + Grade (A-F)
+
+ScanCtrl -> DB : Mettre à jour Analysis\n(status: "completed")
+activate DB
+DB --> ScanCtrl : Analysis mise à jour
+deactivate DB
+
+== Génération de Corrections IA ==
+
+User -> Frontend : Demander correction IA\npour vulnérabilité #1
+activate Frontend
+
+Frontend -> Backend : POST /api/fixes/generate\n{ vulnerabilityId }
+activate Backend
+
+Backend -> "Fix\nController" : generateFix(req, res)
+activate "Fix\nController"
+
+"Fix\nController" -> DB : Récupérer Vulnerability\n+ Analysis
+activate DB
+DB --> "Fix\nController" : Vulnerability data
+deactivate DB
+
+"Fix\nController" -> Claude : generateFix(vulnerability, repoPath)
+activate Claude
+
+Claude -> Claude : Construire prompt\n(OWASP context + code snippet)
+
+Claude -> "Anthropic\nAPI" : POST messages.create\n(model: claude-sonnet-4-6)
+activate "Anthropic\nAPI"
+"Anthropic\nAPI" --> Claude : Correction JSON\n(fixedCode, explanation)
+deactivate "Anthropic\nAPI"
+
+Claude --> "Fix\nController" : Fix généré
+deactivate Claude
+
+"Fix\nController" -> DB : Créer Fix\n(type: "ai-generated")
+activate DB
+DB --> "Fix\nController" : Fix créé
+deactivate DB
+
+"Fix\nController" --> Backend : Fix généré
+deactivate "Fix\nController"
+
+Backend --> Frontend : { fix, diff }
+deactivate Backend
+
+Frontend --> User : Afficher code corrigé\n+ diff avant/après
+deactivate Frontend
+
+== Push vers GitHub ==
+
+User -> Frontend : Pousser corrections\nvers GitHub
+activate Frontend
+
+Frontend -> Backend : POST /api/github/push\n{ analysisId, fixIds[] }
+activate Backend
+
+Backend -> "GitHub\nController" : pushFixes(req, res)
+activate "GitHub\nController"
+
+"GitHub\nController" -> DB : Récupérer GitHubConnection\n+ décrypter token
+activate DB
+DB --> "GitHub\nController" : Token GitHub décrypté
+deactivate DB
+
+"GitHub\nController" -> GitSvc : applyFixes(repoPath, fixes)
+activate GitSvc
+
+loop Pour chaque fix sélectionné
+  GitSvc -> GitSvc : Valider path\n(path traversal check)
+  GitSvc -> GitSvc : Écrire fichier corrigé
+end
+
+GitSvc -> "Git CLI" : git checkout -b\nfix/security-2026-03-05
+activate "Git CLI"
+"Git CLI" --> GitSvc : Branche créée
+deactivate "Git CLI"
+
+GitSvc -> "Git CLI" : git add .\ngit commit -m "fix: ..."
+activate "Git CLI"
+"Git CLI" --> GitSvc : Commit créé
+deactivate "Git CLI"
+
+GitSvc -> "Git CLI" : git push origin\nfix/security-2026-03-05
+activate "Git CLI"
+"Git CLI" --> GitSvc : Push réussi
+deactivate "Git CLI"
+
+GitSvc --> "GitHub\nController" : Branche poussée
+deactivate GitSvc
+
+"GitHub\nController" -> GitHub : POST /repos/{owner}/{repo}/pulls
+activate GitHub
+GitHub --> "GitHub\nController" : Pull Request créée\n(#42)
+deactivate GitHub
+
+"GitHub\nController" -> DB : Mettre à jour Fixes\n(status: "applied", gitBranch, gitCommitHash)
+activate DB
+DB --> "GitHub\nController" : Fixes mis à jour
+deactivate DB
+
+"GitHub\nController" --> Backend : { prUrl, prNumber }
+deactivate "GitHub\nController"
+
+Backend --> Frontend : { success, prUrl }
+deactivate Backend
+
+Frontend --> User : Notification :\n"PR créée avec succès !\nVoir sur GitHub"
+deactivate Frontend
+
+== Nettoyage ==
+
+ScanCtrl -> GitSvc : Supprimer repository\ntemporaire
+activate GitSvc
+GitSvc -> GitSvc : rm -rf /tmp/repo-xxx
+GitSvc --> ScanCtrl : Nettoyage terminé
+deactivate GitSvc
+
+note over ScanCtrl, DB
+  Cleanup automatique des scans
+  > 7 jours via CRON job
+end note
+
+@enduml

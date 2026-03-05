@@ -1,0 +1,153 @@
+@startuml SecureScan - Diagramme de Cas d'Utilisation
+
+' Configuration du style
+skinparam backgroundColor white
+skinparam actorBackgroundColor #87CEEB
+skinparam actorBorderColor #000000
+skinparam usecaseBackgroundColor #90EE90
+skinparam usecaseBorderColor #000000
+skinparam packageBackgroundColor #FFFACD
+skinparam packageBorderColor #000000
+skinparam arrowColor #000000
+
+left to right direction
+
+' ====================================
+' ACTEURS
+' ====================================
+actor "Utilisateur\nNon-Connecté" as Guest #LightGray
+actor "Utilisateur\nConnecté" as User #87CEEB
+actor "Système\nGitHub" as GitHub #DDA0DD
+actor "Système\nClaude AI" as Claude #FFB6C1
+
+' ====================================
+' CAS D'UTILISATION - AUTHENTIFICATION
+' ====================================
+package "Authentification" #FFFACD {
+  usecase (S'inscrire) as UC1
+  usecase (Se connecter) as UC2
+  usecase (Voir profil) as UC3
+  usecase (Modifier profil) as UC4
+}
+
+' ====================================
+' CAS D'UTILISATION - SCAN
+' ====================================
+package "Analyse de Sécurité" #E0FFE0 {
+  usecase (Soumettre un\nrepository Git) as UC5
+  usecase (Uploader un\nfichier ZIP) as UC6
+  usecase (Lancer le scan\nSemgrep) as UC7
+  usecase (Voir les\nvulnérabilités) as UC8
+  usecase (Consulter le\nrapport détaillé) as UC9
+}
+
+' ====================================
+' CAS D'UTILISATION - CORRECTIONS
+' ====================================
+package "Corrections Automatiques" #FFE0E0 {
+  usecase (Générer une\ncorrection IA) as UC10
+  usecase (Voir le code\ncorrigé) as UC11
+  usecase (Appliquer les\ncorrections) as UC12
+}
+
+' ====================================
+' CAS D'UTILISATION - GITHUB
+' ====================================
+package "Intégration GitHub" #E0E0FF {
+  usecase (Connecter\ncompte GitHub) as UC13
+  usecase (Créer une\nPull Request) as UC14
+  usecase (Pousser les\ncorrections) as UC15
+}
+
+' ====================================
+' CAS D'UTILISATION - HISTORIQUE
+' ====================================
+package "Historique & Rapports" #FFE0FF {
+  usecase (Consulter\nl'historique) as UC16
+  usecase (Télécharger\nrapport PDF) as UC17
+  usecase (Comparer les\nscans) as UC18
+}
+
+' ====================================
+' RELATIONS GUEST
+' ====================================
+Guest --> UC1
+Guest --> UC2
+
+' ====================================
+' RELATIONS USER - AUTHENTIFICATION
+' ====================================
+User --> UC3
+User --> UC4
+
+' ====================================
+' RELATIONS USER - SCAN
+' ====================================
+User --> UC5
+User --> UC6
+User --> UC8
+User --> UC9
+
+UC5 ..> UC7 : <<include>>
+UC6 ..> UC7 : <<include>>
+UC7 ..> UC8 : <<include>>
+
+' ====================================
+' RELATIONS USER - CORRECTIONS
+' ====================================
+User --> UC10
+User --> UC11
+User --> UC12
+
+UC10 ..> UC11 : <<include>>
+UC12 ..> UC15 : <<extend>>
+
+' ====================================
+' RELATIONS USER - GITHUB
+' ====================================
+User --> UC13
+User --> UC14
+
+UC14 ..> UC15 : <<include>>
+
+' ====================================
+' RELATIONS USER - HISTORIQUE
+' ====================================
+User --> UC16
+User --> UC17
+User --> UC18
+
+' ====================================
+' RELATIONS SYSTÈMES EXTERNES
+' ====================================
+UC15 --> GitHub : utilise
+UC10 --> Claude : utilise
+UC7 --> "Semgrep" : utilise
+
+' ====================================
+' NOTES
+' ====================================
+note right of UC7
+  Scan automatique des
+  vulnérabilités OWASP
+  via Semgrep
+end note
+
+note right of UC10
+  Génération de corrections
+  via Claude AI (Anthropic)
+end note
+
+note bottom of UC15
+  Push automatique des
+  corrections via GitHub API
+end note
+
+legend bottom right
+  **SecureScan - Cas d'Utilisation**
+  ====
+  <<include>> = Obligatoire
+  <<extend>> = Optionnel
+endlegend
+
+@enduml

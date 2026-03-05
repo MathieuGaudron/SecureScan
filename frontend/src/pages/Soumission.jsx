@@ -98,7 +98,10 @@ function Soumission({
         <input
           type="text"
           value={repoUrl}
-          onChange={(e) => setRepoUrl(e.target.value)}
+          onChange={(e) => {
+            setRepoUrl(e.target.value);
+            if (e.target.value) setZipFile(null);
+          }}
           placeholder="https://github.com/user/project"
           className="w-full bg-[#0f1419] border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors mb-6"
         />

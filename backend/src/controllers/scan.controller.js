@@ -2,6 +2,7 @@ const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const AdmZip = require("adm-zip");
+const simpleGit = require("simple-git");
 
 const { sequelize } = require("../database/connection");
 const { Analysis, Vulnerability } = require("../models");
@@ -56,10 +57,22 @@ function getRepoName(repoUrl) {
   }
 }
 
+// Fonction de validation pour éviter le path traversal
+function validatePath(basePath, targetPath) {
+  const resolvedBase = path.resolve(basePath);
+  const resolvedTarget = path.resolve(basePath, targetPath);
+
+  if (!resolvedTarget.startsWith(resolvedBase)) {
+    throw new Error("Path traversal detected");
+  }
+
+  return resolvedTarget;
+}
+
 // On extrait un petit bout de code autour d'une ligne (pour l'affichage)
 function extractCodeSnippet(filePath, startLine, endLine, projectPath) {
   try {
-    const fullPath = path.join(projectPath, filePath);
+    const fullPath = validatePath(projectPath, filePath);
     if (!fs.existsSync(fullPath)) return null;
 
     const content = fs.readFileSync(fullPath, "utf-8");
@@ -587,16 +600,20 @@ exports.scanRepo = async (req, res) => {
       scanStartedAt: new Date(),
     });
 
-    // Clone
+    // Clone - Utiliser simple-git pour éviter l'injection de commandes
     console.log("📥 Clonage repo...");
-    await execPromise(`git clone --depth 1 ${repoUrl} ${projectPath}`);
+    const git = simpleGit();
+    await git.clone(repoUrl, projectPath, ["--depth", "1"]);
     console.log("✅ Repo cloné");
 
     if (branch && branch !== "main") {
-      await execPromise(`git fetch --depth 1 origin ${branch}`, {
-        cwd: projectPath,
-      });
-      await execPromise(`git checkout ${branch}`, { cwd: projectPath });
+      // Valider le nom de la branche (alphanumeric, -, _, /)
+      if (!/^[a-zA-Z0-9_\-\/]+$/.test(branch)) {
+        throw new Error("Invalid branch name");
+      }
+      const gitRepo = simpleGit(projectPath);
+      await gitRepo.fetch(["--depth", "1", "origin", branch]);
+      await gitRepo.checkout(branch);
       console.log("🌿 Branch checkout:", branch);
     }
 

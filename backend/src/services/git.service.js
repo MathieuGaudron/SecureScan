@@ -25,6 +25,12 @@ class GitService {
     try {
       // Nettoyer l'URL et extraire le nom du repo
       const repoName = this.extractRepoName(repoUrl);
+
+      // Valider repoName pour éviter path traversal
+      if (!repoName || /[\.\/\\]/.test(repoName)) {
+        throw new Error("Invalid repository name");
+      }
+
       const localPath = path.join(this.tempDir, `${repoName}-${Date.now()}`);
 
       // Construire l'URL avec token si fourni
@@ -52,7 +58,16 @@ class GitService {
   async applyFixes(repoPath, fixes) {
     try {
       for (const fix of fixes) {
-        const fullPath = path.join(repoPath, fix.filePath);
+        // Valider le path pour éviter path traversal
+        const resolvedBase = path.resolve(repoPath);
+        const resolvedTarget = path.resolve(repoPath, fix.filePath);
+
+        if (!resolvedTarget.startsWith(resolvedBase)) {
+          console.warn(`⚠️ Path traversal detected, skipping: ${fix.filePath}`);
+          continue;
+        }
+
+        const fullPath = resolvedTarget;
 
         // Créer le dossier parent si nécessaire
         await fs.ensureDir(path.dirname(fullPath));

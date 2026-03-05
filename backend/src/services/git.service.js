@@ -59,10 +59,9 @@ class GitService {
     try {
       for (const fix of fixes) {
         // Valider le path pour éviter path traversal
-        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
         // Protection explicite contre path traversal avec vérification startsWith
-        const resolvedBase = path.resolve(repoPath);
-        const resolvedTarget = path.resolve(repoPath, fix.filePath);
+        const resolvedBase = path.resolve(repoPath); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+        const resolvedTarget = path.resolve(repoPath, fix.filePath); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 
         if (!resolvedTarget.startsWith(resolvedBase)) {
           console.warn(`⚠️ Path traversal detected, skipping: ${fix.filePath}`);

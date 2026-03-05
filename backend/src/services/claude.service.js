@@ -26,10 +26,9 @@ class ClaudeService {
 
     try {
       // Valider le path pour éviter path traversal
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       // Protection explicite contre path traversal avec vérification startsWith
-      const resolvedBase = path.resolve(repoPath);
-      const resolvedTarget = path.resolve(repoPath, vulnerability.filePath);
+      const resolvedBase = path.resolve(repoPath); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+      const resolvedTarget = path.resolve(repoPath, vulnerability.filePath); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 
       if (!resolvedTarget.startsWith(resolvedBase)) {
         throw new Error("Path traversal detected in filePath");

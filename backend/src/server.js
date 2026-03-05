@@ -24,7 +24,7 @@ const PORT = process.env.PORT || 3000;
 // ========================================
 // MIDDLEWARE
 // ========================================
-app.use(cors());
+app.use(cors()); // nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

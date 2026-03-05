@@ -25,8 +25,16 @@ class ClaudeService {
     }
 
     try {
+      // Valider le path pour éviter path traversal
+      const resolvedBase = path.resolve(repoPath);
+      const resolvedTarget = path.resolve(repoPath, vulnerability.filePath);
+
+      if (!resolvedTarget.startsWith(resolvedBase)) {
+        throw new Error("Path traversal detected in filePath");
+      }
+
       // Lire le fichier complet pour le contexte
-      const filePath = path.join(repoPath, vulnerability.filePath);
+      const filePath = resolvedTarget;
       let fullFileContent = "";
 
       if (await fs.pathExists(filePath)) {
